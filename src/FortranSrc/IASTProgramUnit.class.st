@@ -2,8 +2,9 @@ Class {
 	#name : #IASTProgramUnit,
 	#superclass : #IASTAbstractEntity,
 	#instVars : [
-		'name',
-		'body'
+		'body',
+		'entityName',
+		'comments'
 	],
 	#category : #'FortranSrc-intrermediateAST'
 }
@@ -21,13 +22,25 @@ IASTProgramUnit >> body: anObject [
 ]
 
 { #category : #accessing }
-IASTProgramUnit >> name [
+IASTProgramUnit >> comments [
 
-	^ name
+	^ comments
 ]
 
 { #category : #accessing }
-IASTProgramUnit >> name: anObject [
+IASTProgramUnit >> comments: anObject [
 
-	name := anObject
+	comments := anObject
+]
+
+{ #category : #accessing }
+IASTProgramUnit >> entityName [
+
+	^ entityName
+]
+
+{ #category : #accessing }
+IASTProgramUnit >> entityName: anObject [
+
+	entityName := anObject
 ]

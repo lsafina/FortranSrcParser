@@ -4,7 +4,7 @@ Class {
 	#instVars : [
 		'stack',
 		'model',
-		'srcFortran'
+		'f77sourcefile'
 	],
 	#category : #'FortranSrc-Parser'
 }
@@ -24,7 +24,7 @@ PP2FortranSrcParser class >> getLines: filename [
 { #category : #accessing }
 PP2FortranSrcParser class >> ignoredNames [
 
-	^ super ignoredNames , #( stack model srcFortran )
+	^ super ignoredNames , #( stack model #f77sourcefile )
 ]
 
 { #category : #debugging }
@@ -53,21 +53,36 @@ Here, we want the class, the name of the method and the arguments it takes"
 { #category : #'grammar-helper' }
 PP2FortranSrcParser >> aList: aRule [
 
-	"(self prelude: 'AList') , (self haskellList: aRule)"
+	" (self token: 'AList')
+	, (self token: '{')
+	, (self overturedBy: 'alist')
+	, (self prefix: 'alistList')
+	, (self haskellList: aRule)
+	, (self token: '}')"
 
 	^ (super aList: aRule) ==> [ :nodes |
-	  { 
-		  nodes first second.
-		  nodes second } ]
+		nodes fifth
+	  "{ 
+		  nodes third sixth. ""srcSpan."" self flag: #FIXME. ""est-ce vraiment pertinent d'avoir ce srcSpan ? à voir""
+		  nodes fifth ""aRule"" } "]
 ]
 
 { #category : #'grammar-statement' }
 PP2FortranSrcParser >> argument [
-	"(self prelude: 'Argument') , (self maybe: tkString) , (self parens: argumentExpression)"
+
+	" (self token: 'Argument')
+	, (self token: '{')
+	, (self overturedBy: 'argument')
+	, (self prefix: 'argumentName')
+	, (self maybe: tkString)
+	, tkComma
+	, (self prefix: 'argumentExpr')
+	, argumentExpression
+	, (self token: '}')"
 
 	^ super argument
 	==> [ :nodes |
-			nodes
+			{ nodes third sixth . nodes fifth . nodes eighth }
 		 ]
 ]
 
@@ -77,8 +92,7 @@ PP2FortranSrcParser >> argumentExpression [
 	"((self token: 'ArgExpr'), (self parens: expression))
 	/ ((self prelude: 'ArgExprVar') , tkString)"
 	
-	^ super argumentExpression ==> [ :nodes | 1halt. ]
-
+	^ super argumentExpression ==> [ :nodes | nodes second. ]
 	
 ]
 
@@ -126,6 +140,34 @@ PP2FortranSrcParser >> createParameters: nodes to: candidate [
 			             sourceAnchor: (aName isArray ifTrue: [ aName first ] ifFalse: [ aName sourceAnchor]);
 			             yourself.
 		parameter setOwner: candidate ]
+]
+
+{ #category : #'grammar-expression' }
+PP2FortranSrcParser >> declarator [
+
+	" (self token: 'Declarator')
+	, (self token: '{')
+	, (self overturedBy: 'declarator')
+	, (self prefix: 'declaratorVariable')
+	, expression
+	, tkComma
+	, (self prefix: 'declaratorType')
+	, declaratorType
+	, tkComma
+	, (self prefix: 'declaratorLength')
+	, (self maybeNoParens: expression)
+	, tkComma
+	, (self prefix: 'declaratorInitial')
+	, (self maybeNoParens: expression)
+	, (self token: '}')"
+
+	^ super declarator ==> [ :nodes | 
+	  { 
+		  (nodes at: 3) sixth.
+		  (nodes at: 5).
+		  (nodes at: 8).
+		  (nodes at: 11).
+		  (nodes at: 14) } ]
 ]
 
 { #category : #'private-creation' }
@@ -204,14 +246,12 @@ PP2FortranSrcParser >> expFunctionCall [
 	"(self prelude: 'ExpFunctionCall') , (self parens: expression)
 	  , (self maybe: (self aList: argument))"
 
-	^ super expFunctionCall ==> [ :nodes | 
-	  | candidate | 1halt.
-	  candidate := self
-		               ensureFunction: nodes second third
-		               intrinsic: nodes second second = 'ValIntrinsic'.
-	  "self createParameters: nodes third second to: candidate."
-	  self createInvocation: nodes first second to: candidate.
-	candidate
+	^ super expFunctionCall ==> [ :nodes | 1halt.
+	IASTInvocation new 
+		sourceAnchor: nodes first second;
+		entityName: nodes second entityName;
+		arguments: (nodes third flattened select: [ :node | node class = IASTVarAccess ]) ;
+		yourself.
 	 ]
 ]
 
@@ -220,7 +260,7 @@ PP2FortranSrcParser >> expUnary [
 
 	"(self prelude: 'ExpUnary') , unaryOp , (self parens: expression)"
 
-	^ super expUnary ==> [ :nodes | 
+	^ super expUnary ==> [ :nodes | 1halt.
 	  { 
 		  nodes first first.
 		  nodes first second.
@@ -231,34 +271,52 @@ PP2FortranSrcParser >> expUnary [
 { #category : #'grammar-expression' }
 PP2FortranSrcParser >> expValue [
 
-	"(self prelude: 'ExpValue') , ((self parens: value) / valStar)"
+	" (self prelude: 'ExpValue')
+	, ((self parens: value) / valStar)"
 
 	^ super expValue ==> [ :nodes |
-		IASTVarAccess new
-			sourceAnchor: nodes first second ;
-			entityName: nodes second first ;
-			yourself
-	]
+	  (nodes second = 'ValStar' or: [ nodes second first = 'ValString' ])
+		  ifTrue: [ nodes ]
+		  ifFalse: [ 
+			 IASTVarAccess new
+				  sourceAnchor: nodes first second ;
+				  isAssigned: (nodes second second isNumber) ; 
+				  entityName: nodes second second asString ;
+				  yourself ] ]
+]
+
+{ #category : #accessing }
+PP2FortranSrcParser >> f77sourcefile [
+
+	^ f77sourcefile
+]
+
+{ #category : #accessing }
+PP2FortranSrcParser >> f77sourcefile: filename [
+
+	f77sourcefile := filename
 ]
 
 { #category : #'private-helper' }
 PP2FortranSrcParser >> getSignature: aNode [
 
-	^ self srcFortran asFileReference
+	^ self f77sourcefile asFileReference
 		  readStreamDo: [ :stream | 
 			  stream contents copyFrom: aNode startPos to: aNode endPos + 1 ]
-		  ifAbsent: [ '' ]
+		  ifAbsent: [ '' ] 
 ]
 
 { #category : #'grammar-helper' }
 PP2FortranSrcParser >> haskellList: aRule [
 
-	"(self token: '[') , (aRule separatedBy: tkComma) optional
-	  , (self token: ']')"
+	" (self token: '[')
+	, (aRule separatedBy: tkComma) optional
+	, (self token: ']')"
 
-	^ (super haskellList: aRule)
-	  ==> [ :nodes | 
-	  nodes second ifNil: [ #(  ) ] ifNotNil: [ (1 to: nodes second size by: 2) collect: [ :i | nodes second at: i  ] ] ]
+	^ (super haskellList: aRule) ==> [ :nodes |
+	  nodes second ifNil: [ #(  ) ] ifNotNil: [ 
+		  (1 to: nodes second size by: 2) collect: [ :i | 
+			  nodes second at: i ] ] ]
 ]
 
 { #category : #initialization }
@@ -266,9 +324,9 @@ PP2FortranSrcParser >> initialize [
 
 	super initialize.
 
-	stack := Stack new.
-	model := FamixFortranModel new.
-	srcFortran := ''
+	"stack := Stack new."
+	model := OrderedCollection new.
+	f77sourcefile := ''
 ]
 
 { #category : #'private - utility' }
@@ -280,7 +338,8 @@ PP2FortranSrcParser >> isEsope: nodes [
 { #category : #'grammar-helper' }
 PP2FortranSrcParser >> justAList: aRule [
 
-	"self parens: (self token: 'Just') , (self aList: aRule)"
+	" self parens: (self token: 'Just')
+	, (self aList: aRule)"
 
 	^ (super justAList: aRule) ==> [ :nodes | nodes second ]
 ]
@@ -290,9 +349,10 @@ PP2FortranSrcParser >> maybe: aRule [
 
 	"Maybe  -> Nothing / (Just aRule)"
 
-	"tkNothing / (self parens: (self token: 'Just') , aRule)"
+	" tkNothing
+	/ (self parens: (self token: 'Just') , aRule)"
 
-	^ (super maybe: aRule) ==> [ :nodes | 
+	^ (super maybe: aRule) ==> [ :nodes |
 	  nodes = 'Nothing'
 		  ifTrue: [ nodes ]
 		  ifFalse: [ nodes second ] ]
@@ -301,37 +361,33 @@ PP2FortranSrcParser >> maybe: aRule [
 { #category : #'grammar-metaInfo' }
 PP2FortranSrcParser >> metaInfo [
 
-	"self parens: (self token: 'MetaInfo') , (self token: '{') , (miParameters delimitedBy: tkComma) , (self token: '}')
-	  "
+	" (self token: 'MetaInfo')
+	, (self token: '{')
+	, (miParameters delimitedBy: tkComma)
+	, (self token: '}')"
 
-	^ super metaInfo
-	  ==> [ :nodes | 
-	  (nodes third select: [ :each | each isAssociation ]) asDictionary ]
+	^ super metaInfo ==> [ :nodes |
+	  (nodes third select: #isAssociation) asDictionary ]
 ]
 
 { #category : #'grammar-metaInfo' }
 PP2FortranSrcParser >> miFilename [
 
-	"(self token: 'miFilename') , (self token: '=') , tkString"
+	" (self token: 'miFilename')
+	, tkEqual
+	, tkString"
 
 	^ super miFilename ==> [ :nodes |
-	  self srcFortran: nodes third.
+	  self f77sourcefile: nodes third.
 	  nodes first -> nodes third ]
-]
-
-{ #category : #'grammar-metaInfo' }
-PP2FortranSrcParser >> miParameters [
-	"miVersion / miFilename"
-	^ super miParameters
-"	==> [ :nodes |
-		1halt
-	]"
 ]
 
 { #category : #'grammar-metaInfo' }
 PP2FortranSrcParser >> miVersion [
 
-	"(self token: 'miVersion') , (self token: '=') , tkIdentifier"
+	" (self token: 'miVersion')
+	, tkEqual
+	, tkIdentifier"
 	^ super miVersion 
 	==> [ :nodes |
 		nodes first -> nodes third
@@ -352,7 +408,10 @@ PP2FortranSrcParser >> model: anObject [
 
 { #category : #'private-creation' }
 PP2FortranSrcParser >> newEntity: aClass [
-	^ aClass new mooseModel: model; yourself
+
+	^ aClass new
+		  mooseModel: model;
+		  yourself
 ]
 
 { #category : #'private-creation' }
@@ -374,7 +433,9 @@ PP2FortranSrcParser >> newIndexedFileAnchor: filename [
 { #category : #'grammar-helper' }
 PP2FortranSrcParser >> parens: aRule [
 
-	"(self token: '(') , aRule , (self token: ')')"
+	" (self token: '(')
+	, aRule
+	, (self token: ')')"
 
 	^ (super parens: aRule) ==> [ :nodes | nodes second ]
 ]
@@ -382,16 +443,17 @@ PP2FortranSrcParser >> parens: aRule [
 { #category : #grammar }
 PP2FortranSrcParser >> position [
 
-	"self parens: tkNumber , (self token: ':') , tkNumber"
+	"self parens: (tkNumber , (self token: ':') , tkNumber)"
 
-	^ super position
-	  ==> [ :nodes | nodes first @ nodes third ]
+	^ super position ==> [ :nodes | nodes first @ nodes third ]
 ]
 
 { #category : #'grammar-helper' }
 PP2FortranSrcParser >> prelude: aString [
 
-	"aString asPParser trim , emptyTuple , srcSpan"
+	" aString asPParser flatten trim
+	, emptyTuple
+	, srcSpan"
 	^ (super prelude: aString) ==> [ :nodes | { nodes first. nodes third } ]
 ]
 
@@ -418,11 +480,16 @@ PP2FortranSrcParser >> puBlockData [
 	, (self maybe: tkString)
 	, (self haskellList: block)"
 
-	^ super puBlockData ==> [ :nodes | 
-	  | aBlockdata |
-		aBlockdata := self ensureBlockdata: nodes second.
-		aBlockdata.
-	   ]
+	^ super puBlockData ==> [ :nodes | 1halt.
+		IASTBlockData new
+			sourceAnchor: nodes first second ;
+			entityName: (nodes second = 'Nothing'
+				ifTrue: [ '**No Name**' ]
+				ifFalse: [ nodes second ]) ;
+			body: (nodes third flattened select: [ :node | 
+					   node class = IASTInvocation or: [ 
+							   node class = IASTVarAccess and: [ node isAssigned not ] ] ]) ; 
+			yourself ]
 ]
 
 { #category : #'grammar-programUnit' }
@@ -430,10 +497,10 @@ PP2FortranSrcParser >> puComment [
 
 	"(self prelude: 'PUComment') , comment"
 
-	^ super puComment ==> [ :nodes |
+	^ super puComment ==> [ :nodes | 1halt.
 		IASTComment new
-			text: nodes second second ;
 			sourceAnchor: nodes first second ;
+			text: nodes second second ;
 			yourself
 	]
 ]
@@ -451,17 +518,18 @@ PP2FortranSrcParser >> puFunction [
 	, (self maybe: programUnit)"
 
 	^ super puFunction ==> [ :nodes | 
-	| aFunction |
-	aFunction := IASTFunction new.
-	aFunction
-		name: nodes fourth ;
-		sourceAnchor: nodes first second ;
-		parameters: (nodes fifth = 'Nothing'
-			ifTrue: [ #() ]
-			ifFalse: [ nodes fifth second ]) ;
-		returnType: nodes second ";
-		body: nodes seventh".
-	 aFunction ]
+	  1 halt.
+	  IASTFunction new
+		  sourceAnchor: nodes first second;
+		  returnType: nodes second;
+		  entityName: nodes fourth;
+		  parameters: (nodes fifth = 'Nothing'
+				   ifTrue: [ #(  ) ]
+				   ifFalse: [ nodes fifth ]);
+		  body: (nodes seventh flattened select: [ :node | 
+					   node class = IASTInvocation or: [ 
+							   node class = IASTVarAccess and: [ node isAssigned not ] ] ]);
+		  yourself ]
 ]
 
 { #category : #'grammar-programUnit' }
@@ -470,16 +538,16 @@ PP2FortranSrcParser >> puMain [
 	"(self prelude: 'PUMain') , (self maybe: tkString)
 	  , (self haskellList: block) , (self maybe: programUnit)"
 
-	^ super puMain ==> [ :nodes | 
-	| program |
-
-	program := IASTMainProgram new.
-	program 
-		name: (nodes second = 'Nothing'
-			ifTrue: [ '** No name given **' ]
-			ifFalse: [ nodes second ]);
-		body: nodes third.
-	program ]
+	^ super puMain ==> [ :nodes | 1halt.
+		IASTMainProgram new
+			sourceAnchor: nodes first second ;
+			entityName: (nodes second = 'Nothing'
+				ifTrue: [ '** No name given **' ]
+				ifFalse: [ nodes second ]) ;
+			body: (nodes third flattened select: [ :node | 
+					   node class = IASTInvocation or: [ 
+							   node class = IASTVarAccess and: [ node isAssigned not ] ] ]) ;
+			yourself ]
 ]
 
 { #category : #'grammar-programUnit' }
@@ -492,28 +560,43 @@ PP2FortranSrcParser >> puSubroutine [
 	, (self haskellList: block)
 	, (self maybe: programUnit)"
 
-	^ super puSubroutine ==> [ :nodes | 
-	  | subroutine | 
-	  subroutine := self ensureSubroutine: nodes third.
-	  subroutine sourceAnchor: nodes first second.
-	  nodes fourth = 'Nothing' ifFalse: [ 
-		  nodes fourth second do: [ :node |
-			  subroutine addParameter:
-				  ((self newEntity: FamixFortranParameter)
-					   sourceAnchor: node first;
-					   name: node third value;
-					   yourself) ] ].
-	  nodes fifth do: [ :aBlockNode | 
-		  aBlockNode isArray
-			  ifFalse: [ 
-				  aBlockNode setOwner: subroutine
-				  "aBlockNode isInvocation ifTrue: [ 1 halt ]" ]
-			  ifTrue: [ 
-				  (aBlockNode flattened select: [ :entity | 
-					   entity class = FamixFortranInvocation or: [ 
-						   entity class = FamixFortranComment ] ]) do: [ :anEntity | 
-					  anEntity setOwner: subroutine ] ] ].
-	  subroutine ]
+	^ super puSubroutine ==> [ :nodes | 1halt.
+		IASTSubroutine new
+			sourceAnchor: nodes first second ;
+			entityName: nodes third ;
+			parameters: (nodes fourth = 'Nothing'
+				ifTrue: [ #() ]
+				ifFalse: [ nodes fourth ]) ;
+			body: (nodes fifth flattened select: [ :node | 
+					   node class = IASTInvocation or: [ 
+							   node class = IASTVarAccess and: [ node isAssigned not ] ] ]) ;
+			comments: (nodes fifth select: [ :node | node class = IASTComment ]) ;
+			yourself ]
+]
+
+{ #category : #'grammar-declaration' }
+PP2FortranSrcParser >> selector [
+
+	" (self token: 'Selector')
+	, (self token: '{')
+	, (self overturedBy: 'selector')
+	, (self prefix: 'selectorLength')
+	, (self maybeNoParens: expression)
+	, tkComma
+	, (self prefix: 'selectorKind')
+	, (self maybeNoParens: expression)
+	, (self token: '}')"
+
+	^ super selector ==> [ :nodes | 
+	  nodes fifth = 'Nothing'
+		  ifTrue: [ 
+			  { 
+				  nodes fifth.
+				  nodes eighth second } ]
+		  ifFalse: [ 
+			  { 
+				  nodes fifth second.
+				  nodes eighth } ] ]
 ]
 
 { #category : #'grammar-programUnit' }
@@ -526,33 +609,18 @@ PP2FortranSrcParser >> setStubEntity [
 	subroutines collect: [ :subroutine | programFiles includes: subroutine name ] thenDo: [ :subroutine | subroutine isStub: false ] 
 ]
 
-{ #category : #accessing }
-PP2FortranSrcParser >> srcFortran [
-
-	^ srcFortran
-]
-
-{ #category : #accessing }
-PP2FortranSrcParser >> srcFortran: anObject [
-
-	srcFortran := anObject
-]
-
 { #category : #grammar }
 PP2FortranSrcParser >> srcSpan [
 
-	"position , (self token: '-') , position"
+	"NB: `super srcSpan` has a production rule.
+	We cannot call it directly, for that we have to use call the definition instead rather than calling srcSpan from the superclass"
+	
+	" position
+	, (self token: '-')
+	, position"
 
-	"NB: super srcSpan à une regle de production. Pour éviter le bug, mettre directement la définition plutôt que d'appeler srcSpan de la superclass"
-
-	^ position , (self token: '-') , position ==> [ :nodes | 
-	  (self newEntity: FamixFortranIndexedFileAnchor)
-		  startLine: nodes first x;
-		  endLine: nodes third x;
-		  startColumn: nodes first y;
-		  endColumn: nodes third y;
-		  fileName: self srcFortran;
-		  yourself ]
+	^ (position , (self token: '-') , position) ==> [ :nodes |
+	  { nodes first . nodes third } ]
 ]
 
 { #category : #'grammar-statement' }
@@ -562,31 +630,45 @@ PP2FortranSrcParser >> stCall [
 	  , (self maybe: (self aList: argument))"
 
 	^ super stCall ==> [ :nodes | 
-	  | candidate |
-	  candidate := self ensureSubroutine: nodes second third.
-	  (self newEntity: FamixFortranInvocation)
-		  addCandidate: candidate;
-		  signature: (self getSignature: nodes first second);
-		sourceAnchor: nodes first second;
+	  1 halt.
+	  self flag: #TODO. "manage arguments by overriding argument method and extracting needed infos"
+	  IASTInvocation new
+		  sourceAnchor: nodes first second;
+		  entityName: nodes second entityName;
+		  arguments: (nodes third = 'Nothing'
+				   ifTrue: [ #(  ) ]
+				   ifFalse: [ 
+					   nodes third flattened select: [ :node | node class = IASTVarAccess ] ]);
 		  yourself ]
 ]
 
 { #category : #'grammar-statement' }
 PP2FortranSrcParser >> stDeclaration [
-	"(self prelude: 'StDeclaration') , (self parens: typeSpec) , (self maybe: (self aList: attribute)) , (self parens: (self aList: declarator))"
 
-	^ super stDeclaration
-	==> [ :nodes |
-			nodes
-		 ]
+	" (self prelude: 'StDeclaration')
+	, (self parens: typeSpec)
+	, (self maybe: (self aList: attribute))
+	, (self parens: (self aList: declarator))"
+
+	^ super stDeclaration ==> [ :nodes | 
+	  nodes fourth collect: [ :node | 
+		  IASTVariable new
+			  sourceAnchor: node first;
+			  entityName: node second entityName;
+			  typeSpec: nodes second;
+			  dimension: node fourth;
+			  initialValue: node fifth;
+			  yourself ] ]
 ]
 
 { #category : #'grammar-statement' }
 PP2FortranSrcParser >> stExpressionAssign [
 
 	"((self prelude: 'StExpressionAssign') , (self parens: expression) , (self parens: expression))"
+
 	self flag: #FIXME. "StExpressionAssign peut cacher des invocation qui empêche de les traiter plus haut. voir message à moi-même discord."
-	^ super stExpressionAssign ==> [ :nodes | nodes ]
+	^ super stExpressionAssign ==> [ :nodes |
+	  { nodes first second . nodes second . nodes third } ]
 ]
 
 { #category : #'grammar-metaInfo' }
@@ -606,13 +688,13 @@ PP2FortranSrcParser >> stFunction [
 	  , (self parens: expression)"
 
 	^ super stFunction ==> [ :nodes | 
-	  | candidate |
-	  candidate := self ensureFunction: nodes second third.
+	  | candidate | 1halt.
+	 " candidate := self ensureFunction: nodes second third.
 	  (self newEntity: FamixFortranInvocation)
 		  addCandidate: candidate;
 		  signature: (self getSignature: nodes first second);
 		  sourceAnchor: nodes first second;
-		  yourself ]
+		  yourself" nodes ]
 ]
 
 { #category : #'grammar-statement' }
@@ -620,7 +702,7 @@ PP2FortranSrcParser >> stIfLogical [
 	"(self prelude: 'StIfLogical') , (self parens: expression) , (self parens: statement)"
 
 	^ super stIfLogical
-	==> [ :nodes |
+	==> [ :nodes | 1halt.
 			nodes
 		 ]
 ]
@@ -631,43 +713,13 @@ PP2FortranSrcParser >> stPrint [
 	, (self parens: expression)
 	, (self justAList: expression)"
 	
-	^ super stPrint ==> [ :nodes | nodes ]
+	^ super stPrint ==> [ :nodes | 1halt. nodes ]
 ]
 
 { #category : #'accessing - tests' }
 PP2FortranSrcParser >> stack [
 
 	^ stack
-]
-
-{ #category : #'grammar-statement' }
-PP2FortranSrcParser >> statement [
-	"stDeclaration
-	""/ stStructure / stIntent / stOptional / stPublic / stPrivate / stProtected / stSave""
-	/ (self prelude: 'StDimension' aList: declarator)
-	/ (self prelude: 'StAllocatable' aList: declarator)
-	""/ stAsynchronous / stPointer / stTarget / stValue / stVolatile / stData / stAutomatic / ststatic / stNamelist / stParameter / stExternal / stIntrinsic""
-	/ (self prelude: 'StCommon' aList: commonGroup)
-	/ (self prelude: 'StEquivalence' aList: (self aList: expression))
-	""/ stFormat""
-	/ (self prelude: 'StImplicit' maybe: (self aList: impList))
-	
-	""/ stEntry / stInclude / stDo / stDoWhile / stEnddo / stCycle / stExit ""
-	/ stIfLogical
-	"" / stIfArithmetic / stSelectCase / stCase / stEndcase / stFunction""
-	/ stExpressionAssign
-	"" / stPointerAssign / stLabelAssign""
-	/ ((self prelude: 'StGotoUnconditional'), (self parens: expression ))
-	"" / stGotoAssigned / stGotoComputed""
-	/ stCall
-	/ (self prelude: 'StReturn' maybe: expression)
-	/ (self prelude: 'StContinue')
-	""/ ststop / stPause / stRead / stRead2 / stWrite / stPrint / stTypePrint / stOpen / stClose / stFlush / stInquire / stRewind / stRewind2 / stBackspace / stBackspace2 / stEndfile / stEndfile2 / stAllocate / stNullify / stDeallocate / stWhere / stWhereConstruct / stElsewhere / stEndWhere / stUse / stModuleProcedure / stProcedure / stType / stEndType / stSequence / stForall / stForallstatement / stEndForall / stImport / stEnum / stEnumerator / stEndEnum / stFormatBogus"""
-	
-	^ super statement
-	==> [ :nodes |
-			nodes
-		 ]
 ]
 
 { #category : #'grammar-programUnit' }
@@ -680,21 +732,40 @@ PP2FortranSrcParser >> tkNumber [
 { #category : #token }
 PP2FortranSrcParser >> tkString [
 
-	"$"" asPParser , ('\""' asPParser / $"" asPParser negate) star flatten
-	  , $"" asPParser"
+	" $"" asPParser
+	, ('\""' asPParser / $"" asPParser negate) star flatten
+	, $"" asPParser"
 
-	^ super tkString ==> [ :nodes | nodes second]
+	^ super tkString ==> [ :nodes | nodes second ]
 ]
 
 { #category : #'grammar-declaration' }
 PP2FortranSrcParser >> typeSpec [
 
-	"(self prelude: 'TypeSpec') , baseType , (self maybe: selector)"
-	^super typeSpec ==> [ :nodes |
-		IASTTypeRef new
-			entityName: nodes second ;
-			yourself
-	]
+	" (self token: 'TypeSpec')
+	, (self token: '{')
+	, (self overturedBy: 'typeSpec')
+	, (self prefix: 'typeSpecBaseType')
+	, baseType
+	, tkComma
+	, (self prefix: 'typeSpecSelector')
+	, (self maybeNoParens: selector)
+	, (self token: '}')"
+
+	^ super typeSpec ==> [ :nodes | 
+	  | anEntity |
+	  anEntity := IASTTypeRef new
+		              sourceAnchor: nodes third sixth;
+		              entityName: nodes fifth;
+		              yourself.
+	  nodes eighth = 'Nothing'
+		  ifTrue: [ 
+			  anEntity
+				  length: nodes eighth;
+				  kind: nodes eighth ]
+		  ifFalse: [ anEntity addSelector: nodes eighth second ].
+
+	  anEntity ]
 ]
 
 { #category : #'grammar-expression' }
@@ -702,10 +773,11 @@ PP2FortranSrcParser >> valInteger [
 
 	"(self token: 'ValInteger') , tkString , tkNothing"
 
-	^ super valInteger ==> [ :nodes | 
+	^ super valInteger ==> [ :nodes |
 	  { 
 		  nodes first.
-		  nodes second asNumber. } ]
+		  nodes second asNumber.
+		  "nodes third" } ]
 ]
 
 { #category : #'grammar-expression' }
@@ -721,7 +793,7 @@ PP2FortranSrcParser >> valString [
 
 	"(self token: 'ValString') , tkString"
 
-	^ ((self token: 'ValString') , tkString) ==> [ :nodes | 
+	^ ((self token: 'ValString') , tkString) ==> [ :nodes | 1halt.
 	  { 
 		  nodes first.
 		  nodes second } ]
@@ -730,23 +802,23 @@ PP2FortranSrcParser >> valString [
 { #category : #'grammar-expression' }
 PP2FortranSrcParser >> value [
 
-	"valInteger / ((self token: 'ValString') , tkString)
-	  / ((self token: 'ValHollerith') , tkString)
-	  / ((self token: 'ValVariable') , tkString)
-	  / ((self token: 'ValIntrinsic') , tkString)
-	  / ((self token: 'ValOperator') , tkString)
-	  / ((self token: 'ValType') , tkString)
-	/ valReal / valComplex
-	/ valBoz
+	" valInteger 
 	/ valLogical
-	/ valAssignment
-	/ (self token: 'ValStar') / valColon"
+	/ ((self token: 'ValString') , tkString)
+	/ ((self token: 'ValHollerith') , tkString)
+	/ ((self token: 'ValVariable') , tkString)
+	/ ((self token: 'ValIntrinsic') , tkString)
+	/ ((self token: 'ValOperator') , tkString)
+	/ ((self token: 'ValType') , tkString)
+	""/ valBoz""
+	""/ (self token: 'ValStar')""
+	""/ valReal / valComplex""
+	""/ valAssignment / valColon"""
 
-	^ super value ==> [ :nodes | 
+	^ super value ==> [ :nodes |
 	  nodes isArray
 		  ifTrue: [ 
-			  { 
-				  nodes first.
+			  {  nodes first.
 				  nodes second } ]
 		  ifFalse: [ nodes ] ]
 ]
