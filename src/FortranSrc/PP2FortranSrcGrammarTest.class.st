@@ -9410,9 +9410,10 @@ PP2FortranSrcGrammarTest >> astHaskell: sourceCode [
 { #category : #running }
 PP2FortranSrcGrammarTest >> haskellParserPath [
 
-	"/Users/sow/Perso/demo-bib/parser/"
-
-	^ 'fortran-src'
+	"temporal dirty hard-coding"
+	
+	^ '/Users/lsafina/.cabal/bin/fortran-src'
+	"^ 'fortran-src'"
 ]
 
 { #category : #accessing }

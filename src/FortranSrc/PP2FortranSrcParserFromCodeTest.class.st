@@ -381,8 +381,8 @@ PP2FortranSrcParserFromCodeTest >> testRelbkWithDeclarationOnly [
 
 '
 		        rule: #start.
-	parser model  halt.
-	iast halt.
+	"parser model  halt.
+	iast halt."
 ]
 
 { #category : #'tests-programUnit' }
@@ -470,7 +470,7 @@ PP2FortranSrcParserFromCodeTest >> testSubroutine3 [
 	self assert: iast class equals: IASTProgramFile.
 	self assert: iast progUnits size equals: 1.
 	
-	parser model halt.
+	"parser model halt."
 
 	node := iast progUnits first.
 
@@ -674,7 +674,7 @@ c        ur.ubb(jr) == ur.ubb(jr + 1) -> erreur parsing normal
 
 '
 		        rule: #start.
-		iast halt.
+		"iast halt."
 ]
 
 { #category : #'tests - allnodes' }

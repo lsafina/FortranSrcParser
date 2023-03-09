@@ -4,9 +4,47 @@ Class {
 	#category : #'FortranSrc-Tests'
 }
 
-{ #category : #accessing }
-PP2FortranToFASTParserTest >> parserClass [
-	^ PP2FortranToFASTParser 
+{ #category : #running }
+PP2FortranToFASTParserTest >> astHaskell: sourceCode [
+
+	| filename option |
+	option := '-v77l -t json encode'.
+	filename := './fortran77.f'.
+	filename asFileReference writeStreamDo: [ :stream | 
+		stream truncate.
+		stream
+		<< (sourceCode copy replaceAll: Character cr with: Character lf) ].
+	
+	LibC runCommand: ('{1} {2} "{3}" >"{3}.json" 2>"{3}.err"' format: { 
+				 self haskellParserPath.
+				 option.
+				 filename. })
+]
+
+{ #category : #running }
+PP2FortranToFASTParserTest >> haskellParserPath [
+
+	"temporal dirty hard-coding"
+
+	^ '/Users/lsafina/.cabal/bin/fortran-src-extras serialize'
+	"^ '/Users/lsafina/.cabal/bin/fortran-src' - when we need to receive a haskell-based representation"
+]
+
+{ #category : #tests }
+PP2FortranToFASTParserTest >> parse: sourceCode [
+
+	self astHaskell: sourceCode.
+	FortranSrcJsonVisitor new visit:
+		('fortran77.f.json' asFileReference readStreamDo: [ :str | 
+			 NeoJSONReader fromString: str contents ]).
+]
+
+{ #category : #tests }
+PP2FortranToFASTParserTest >> parse: sourceCode rule: aRule [
+
+	FortranSrcJsonVisitor new visit:
+		('fortran77.f.json' asFileReference readStreamDo: [ :str | 
+			 NeoJSONReader fromString: str contents ]).
 ]
 
 { #category : #accessing }
@@ -16,26 +54,35 @@ PP2FortranToFASTParserTest >> setUp [
 	parser := self parserInstance
 ]
 
-{ #category : #test }
-PP2FortranToFASTParserTest >> testProgramFile [
+{ #category : #tests }
+PP2FortranToFASTParserTest >> testBasic [
 
-	| ast programFile |
-	ast := self
-		       parse: 'ProgramFile (MetaInfo
-	{miVersion = Fortran77,
-	miFilename = "emptyFile.f"})
-	[]'
-		       rule: #programFile.
+	FortranSrcJsonVisitor new visit:
+		('fortran77.f.json' asFileReference readStreamDo: [ :str | 
+			 NeoJSONReader fromString: str contents ])
+		
+			
+	
+]
 
-	self
-		assert: (parser model allWithType: FamixFortranProgramFile) size
-		equals: 1.
-	programFile := (parser model allWithType: FamixFortranProgramFile)
-		               first.
+{ #category : #tests }
+PP2FortranToFASTParserTest >> testProgramWithMultipleProgUnitsWithInvocation2 [
 
-	self assert: programFile version equals: 'Fortran77'.
+self
+		       parse: '      program myprog
+      i = ifunc (i)
+      end
 
-	self assert: programFile filename equals: 'emptyFile.f'.
+      function ifunc( k )
+      end
+'
+]
 
-	self assertEmpty: programFile programUnits
+{ #category : #tests }
+PP2FortranToFASTParserTest >> testSubroutine [
+
+	self parse: '      subroutine hello( name )
+        write(*,*) name
+      end
+'
 ]

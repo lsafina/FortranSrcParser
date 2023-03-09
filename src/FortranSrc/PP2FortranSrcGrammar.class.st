@@ -623,12 +623,7 @@ PP2FortranSrcGrammar >> maybeNoParens: aRule [
 { #category : #'grammar-metaInfo' }
 PP2FortranSrcGrammar >> metaInfo [
 
-	"'(' asPParser , (self token: 'MetaInfo') , 
-	'{'  asPParser
-	, (miParameters delimitedBy: tkComma)
-	, '}'  asPParser, ')' asPParser"
-	
-	^ self parens: (self token: 'MetaInfo')
+	^ (self token: 'MetaInfo')
 	, (self token: '{')
 	, (miParameters delimitedBy: tkComma)
 	, (self token: '}')
@@ -721,10 +716,14 @@ PP2FortranSrcGrammar >> prelude: aString maybe: aRule [
 { #category : #'grammar-programUnit' }
 PP2FortranSrcGrammar >> programFile [
 
-	"'ProgramFile' asPParser flatten trim , metaInfo , (self token: '[') , (aRule separatedBy: tkComma) optional
-	  , (self token: ']')"
-
-	^ (self token: 'ProgramFile') , metaInfo , (self haskellList: programUnit)
+	^ (self token: 'ProgramFile')
+	, (self token: '{')
+	, (self prefix: 'programFileMeta')
+	, metaInfo
+	, tkComma
+	, (self prefix: 'programFileProgramUnits')
+	, (self haskellList: programUnit)
+	, (self token: '}')
 ]
 
 { #category : #'grammar-programUnit' }

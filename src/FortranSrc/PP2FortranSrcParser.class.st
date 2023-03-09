@@ -246,7 +246,7 @@ PP2FortranSrcParser >> expFunctionCall [
 	"(self prelude: 'ExpFunctionCall') , (self parens: expression)
 	  , (self maybe: (self aList: argument))"
 
-	^ super expFunctionCall ==> [ :nodes | 1halt.
+	^ super expFunctionCall ==> [ :nodes | 
 	IASTInvocation new 
 		sourceAnchor: nodes first second;
 		entityName: nodes second entityName;
@@ -460,17 +460,32 @@ PP2FortranSrcParser >> prelude: aString [
 { #category : #'grammar-programUnit' }
 PP2FortranSrcParser >> programFile [
 
-	"(self token: 'ProgramFile') , metaInfo , (self haskellList: programUnit)"
+	" (self token: 'ProgramFile')
+	, (self token: '{')
+	, (self prefix: 'programFileMeta')
+	, metaInfo
+	, tkComma
+	, (self prefix: 'programFileProgramUnits')
+	, (self haskellList: programUnit)
+	, (self token: '}')"
 
 	^ super programFile ==> [ :nodes | 
-	| progFile |
-	1 halt.
-	progFile := IASTProgramFile new.
-	progFile
-		filename: (nodes second at: 'miFilename' ifPresent: [ :node | node ] ifAbsent: [ '' ]) ;
-		version: (nodes second at: 'miVersion' ifAbsent: [ '' ]);
-		progUnits: nodes third.
-	progFile ]
+	  | compilationUnit |
+	  
+	  compilationUnit := IASTProgramFile new
+		                     filename:
+			                     (nodes fourth
+				                      at: 'miFilename'
+				                      ifAbsent: [ '' ]);
+		                     version:
+			                     (nodes fourth
+				                      at: 'miVersion'
+				                      ifAbsent: [ 'Fortran77' ]);
+		                     progUnits: nodes seventh;
+		                     yourself.
+		self model add: compilationUnit.
+		compilationUnit
+		 ]
 ]
 
 { #category : #'grammar-programUnit' }
@@ -480,7 +495,7 @@ PP2FortranSrcParser >> puBlockData [
 	, (self maybe: tkString)
 	, (self haskellList: block)"
 
-	^ super puBlockData ==> [ :nodes | 1halt.
+	^ super puBlockData ==> [ :nodes |
 		IASTBlockData new
 			sourceAnchor: nodes first second ;
 			entityName: (nodes second = 'Nothing'
@@ -497,7 +512,7 @@ PP2FortranSrcParser >> puComment [
 
 	"(self prelude: 'PUComment') , comment"
 
-	^ super puComment ==> [ :nodes | 1halt.
+	^ super puComment ==> [ :nodes | 
 		IASTComment new
 			sourceAnchor: nodes first second ;
 			text: nodes second second ;
@@ -518,7 +533,7 @@ PP2FortranSrcParser >> puFunction [
 	, (self maybe: programUnit)"
 
 	^ super puFunction ==> [ :nodes | 
-	  1 halt.
+	  
 	  IASTFunction new
 		  sourceAnchor: nodes first second;
 		  returnType: nodes second;
@@ -538,7 +553,7 @@ PP2FortranSrcParser >> puMain [
 	"(self prelude: 'PUMain') , (self maybe: tkString)
 	  , (self haskellList: block) , (self maybe: programUnit)"
 
-	^ super puMain ==> [ :nodes | 1halt.
+	^ super puMain ==> [ :nodes | 
 		IASTMainProgram new
 			sourceAnchor: nodes first second ;
 			entityName: (nodes second = 'Nothing'
@@ -560,7 +575,7 @@ PP2FortranSrcParser >> puSubroutine [
 	, (self haskellList: block)
 	, (self maybe: programUnit)"
 
-	^ super puSubroutine ==> [ :nodes | 1halt.
+	^ super puSubroutine ==> [ :nodes | 
 		IASTSubroutine new
 			sourceAnchor: nodes first second ;
 			entityName: nodes third ;
@@ -630,7 +645,7 @@ PP2FortranSrcParser >> stCall [
 	  , (self maybe: (self aList: argument))"
 
 	^ super stCall ==> [ :nodes | 
-	  1 halt.
+	  
 	  self flag: #TODO. "manage arguments by overriding argument method and extracting needed infos"
 	  IASTInvocation new
 		  sourceAnchor: nodes first second;
@@ -688,7 +703,7 @@ PP2FortranSrcParser >> stFunction [
 	  , (self parens: expression)"
 
 	^ super stFunction ==> [ :nodes | 
-	  | candidate | 1halt.
+	  | candidate | 
 	 " candidate := self ensureFunction: nodes second third.
 	  (self newEntity: FamixFortranInvocation)
 		  addCandidate: candidate;
