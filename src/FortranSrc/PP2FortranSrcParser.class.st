@@ -402,7 +402,7 @@ PP2FortranSrcParser >> programFile [
 
 	^ super programFile ==> [ :nodes | 
 	| progFile |
-
+	1 halt.
 	progFile := IASTProgramFile new.
 	progFile
 		filename: (nodes second at: 'miFilename' ifPresent: [ :node | node ] ifAbsent: [ '' ]) ;
