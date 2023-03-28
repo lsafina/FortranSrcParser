@@ -5,70 +5,23 @@ Class {
 }
 
 { #category : #visiting }
-FortranSrcJsonVisitor >> apply: aMessage withValue: anEvaluated onReceiver: type [
+FortranSrcJsonVisitor >> builtVisitSelector: key [
 
-	| selector |
-	selector := (aMessage , ': ') asSymbol.
-	type perform: selector with: anEvaluated. 
+	^ ('visit' , key capitalized , ':') asSymbol
 ]
 
 { #category : #'reflective operations' }
 FortranSrcJsonVisitor >> doesNotUnderstand: message [
-	FortranSrcJsonVisitor compile: 
-	message selector , ' anObject
+
+	self class compile: message selector , ' anObject
 	self flag: ''TODO generated automatically, please insert your code here''
-'.
+'
 ]
 
 { #category : #'as yet unclassified' }
-FortranSrcJsonVisitor >> parse: anObject [
-	self flag: 'TODO generated automatically, please insert your code here'
+FortranSrcJsonVisitor >> parseSubroutine: anObject [
 
-]
-
-{ #category : #'as yet unclassified' }
-FortranSrcJsonVisitor >> parseProgramUnit: aDictionary [
-
-	"program unit is a dictionary that contains annotation, blocks, name, etc.
-	the type of program unit depends on its tag value"
-
-	| type |
-	aDictionary isDictionary
-		ifTrue: [ 
-			type := self visitProgramUnitTag: (aDictionary at: 'tag').
-
-			aDictionary keysAndValuesDo: [ :message :value | 
-				| evaluated |
-				evaluated := FASTFortranCharacterTypeExpression new.
-				self apply: message withValue: evaluated onReceiver: type ] ]
-		ifFalse: [ "TODO error malformed json" 1 halt ]
-]
-
-{ #category : #visiting }
-FortranSrcJsonVisitor >> set: aParameter [
-
-	| selector |
-	selector := ('set' , aParameter  capitalized) asSymbol.
-	self perform: selector 
-]
-
-{ #category : #visiting }
-FortranSrcJsonVisitor >> set: aParameter receiver: aReceiver [
-
-	| selector |
-	selector := ('set' , aParameter  capitalized, ':') asSymbol.
-	self perform: selector 
-]
-
-{ #category : #'as yet unclassified' }
-FortranSrcJsonVisitor >> setTag: anObject [
-	self flag: 'TODO generated automatically, please insert your code here'
-
-]
-
-{ #category : #'as yet unclassified' }
-FortranSrcJsonVisitor >> setTag: aSelector receiver: aReceiver [
-	aReceiver perform: aSelector.
+	^ self visitJsonArray: (anObject at: #program_units)
 ]
 
 { #category : #visiting }
@@ -78,28 +31,114 @@ FortranSrcJsonVisitor >> visit: aJsonElement [
 	- lists (an ordered sequenece of values) 
 	- maps (an unordered associative array, mapping string property names to values)"
 
-	aJsonElement isDictionary ifTrue: [ self visitJsonMap: aJsonElement ].
+	aJsonElement isDictionary ifTrue: [ ^ self visitJsonMap: aJsonElement ].
 
-	aJsonElement isArray ifTrue: [ self visitJsonArray: aJsonElement ].
-		
+	aJsonElement isArray ifTrue: [ ^ self visitJsonArray: aJsonElement ]
 ]
 
 { #category : #'as yet unclassified' }
 FortranSrcJsonVisitor >> visitAnno: anObject [
-	self flag: 'TODO generated automatically, please insert your code here'
 
+	"ignored"
 ]
 
 { #category : #'as yet unclassified' }
-FortranSrcJsonVisitor >> visitArguments: anObject [
-	self flag: 'TODO generated automatically, please insert your code here'
+FortranSrcJsonVisitor >> visitArgumentValue: anObject [
 
+	^ self visitTaggedElement: anObject
+]
+
+{ #category : #'as yet unclassified' }
+FortranSrcJsonVisitor >> visitArguments: anASTArguments [
+
+	^ self visitJsonArray: (anASTArguments at: 'list')
+]
+
+{ #category : #'as yet unclassified' }
+FortranSrcJsonVisitor >> visitAssign_expression: anObject [
+
+	1 halt.
+]
+
+{ #category : #'as yet unclassified' }
+FortranSrcJsonVisitor >> visitBlock_data: anObject [
+
+	| value |
+	value := FASTFortranStatementBlockData new.
+	value name: (anObject at: 'name').
+
+	value statements: (self visit: (anObject at: 'blocks')).
+
+	^ value
 ]
 
 { #category : #'as yet unclassified' }
 FortranSrcJsonVisitor >> visitBlocks: anObject [
-	self flag: 'TODO generated automatically, please insert your code here'
 
+]
+
+{ #category : #'as yet unclassified' }
+FortranSrcJsonVisitor >> visitComment: anObject [
+
+]
+
+{ #category : #'as yet unclassified' }
+FortranSrcJsonVisitor >> visitCommon: anObject [
+
+	"creates common statement which defines a block of main memory storage so that different program units can share the same data without using arguments.
+
+COMMON [/[cb]/] nlist [[,]/[cb]/ nlist] where 
+cb: Common block name,
+nlist: List of variable names, array names, and array declarators  "
+
+	| value |
+	
+	value := FASTFortranStatementCommon new
+]
+
+{ #category : #'as yet unclassified' }
+FortranSrcJsonVisitor >> visitContents: anObject [
+
+	1 halt.
+]
+
+{ #category : #'as yet unclassified' }
+FortranSrcJsonVisitor >> visitData: anObject [
+
+	1 halt.
+]
+
+{ #category : #'as yet unclassified' }
+FortranSrcJsonVisitor >> visitDeclaration: anObject [
+	
+	| variable |
+	1 halt.
+	variable := self visit: (anObject at: 'declarators').
+	self visit: (anObject at: 'type').
+	
+	^ variable.
+	
+]
+
+{ #category : #'as yet unclassified' }
+FortranSrcJsonVisitor >> visitFunction: anObject [
+
+	| function |
+	
+	1 halt.
+	function := FASTFortranStatementFunction new.
+	function name: (anObject at: 'name').
+	function arguments: (self visitArguments: (anObject at: 'arguments')).
+	function body: (self visitArguments: (anObject at: 'blocks')).
+	^ function. 
+	
+	
+]
+
+{ #category : #'as yet unclassified' }
+FortranSrcJsonVisitor >> visitInitial: anObject [
+
+	"ignore"
 ]
 
 { #category : #visiting }
@@ -107,7 +146,11 @@ FortranSrcJsonVisitor >> visitJsonArray: aJsonArray [
 
 	"process JSON Array"
 
-	aJsonArray do: [ :value | self visit: value ]
+	^ aJsonArray collect: [ :value | 
+		  1 halt.
+		  (value includesKey: 'tag')
+			  ifTrue: [ self visitTaggedElement: value ]
+			  ifFalse: [ self visit: value ] ]
 ]
 
 { #category : #visiting }
@@ -115,22 +158,41 @@ FortranSrcJsonVisitor >> visitJsonMap: aJsonMap [
 
 	"process JSON map"
 
-	aJsonMap keysAndValuesDo: [ :key :value | 
+	| newCollection |
+	newCollection := OrderedCollection new: aJsonMap size.
+
+	aJsonMap associationsDo: [ :assoc | 
 		| selector |
-		selector := ('visit' , key capitalized , ':') asSymbol.
-		self perform: selector with: value ]
+		1 halt.
+		selector := self builtVisitSelector: assoc key.
+		newCollection add: (self perform: selector with: assoc value) ].
+
+	1 halt.
+	^ newCollection
 ]
 
 { #category : #'as yet unclassified' }
 FortranSrcJsonVisitor >> visitLabel: anObject [
-	self flag: 'TODO generated automatically, please insert your code here'
 
+	"ignored"
+]
+
+{ #category : #'as yet unclassified' }
+FortranSrcJsonVisitor >> visitLength: anObject [
+
+	"ignore"
 ]
 
 { #category : #'as yet unclassified' }
 FortranSrcJsonVisitor >> visitList: anObject [
-	self flag: 'TODO generated automatically, please insert your code here'
 
+	^ self visit: anObject
+]
+
+{ #category : #'as yet unclassified' }
+FortranSrcJsonVisitor >> visitMain: anObject [
+
+	1 halt.
 ]
 
 { #category : #'as yet unclassified' }
@@ -140,69 +202,121 @@ FortranSrcJsonVisitor >> visitMeta: anObject [
 
 { #category : #'as yet unclassified' }
 FortranSrcJsonVisitor >> visitName: anObject [
-	self flag: 'TODO generated automatically, please insert your code here'
 
 ]
 
 { #category : #'as yet unclassified' }
 FortranSrcJsonVisitor >> visitOptions: anObject [
-	self flag: 'TODO generated automatically, please insert your code here'
 
-]
-
-{ #category : #'as yet unclassified' }
-FortranSrcJsonVisitor >> visitProgramUnitTag: aTag [
-
-	aTag = #main ifTrue: [ ^ FASTFortranMainProgram new ].
-	aTag = #function ifTrue: [ ^ FASTFortranStatementFunction new ].
-	aTag = #subroutine ifTrue: [ ^ FASTFortranStatementSoubroutine new ]
-	
-	"TODO error unrecognised tag"
 ]
 
 { #category : #'as yet unclassified' }
 FortranSrcJsonVisitor >> visitProgram_units: anObject [
+
 	"anObject is an array of program units that can be main program (tag: main) or subprogram (tags: function, subroutine, ...)"
 
 	anObject isArray
-		ifTrue: [ anObject do: [ :programUnit |
+		ifTrue: [ 
+			self visitJsonArray: anObject "anObject do: [ :programUnit |
 				self parseProgramUnit: programUnit 
-				 ] ]
-		ifFalse: [ "surprise me" 1 halt ]
+				 ]" ]
+		ifFalse: [ " todo exception " ]
 ]
 
 { #category : #'as yet unclassified' }
 FortranSrcJsonVisitor >> visitResult: anObject [
-	self flag: 'TODO generated automatically, please insert your code here'
 
+	1 halt.
 ]
 
 { #category : #'as yet unclassified' }
 FortranSrcJsonVisitor >> visitSpan: anObject [
-	self flag: 'TODO generated automatically, please insert your code here'
 
+	" anObject is a source anchor in the form (a:b - c:d) where a and c are line numbers and b and d are columns. 
+	for the moment ignored"
+
+	
 ]
 
 { #category : #'as yet unclassified' }
 FortranSrcJsonVisitor >> visitStatement: anObject [
-	self flag: 'TODO generated automatically, please insert your code here'
+	
+	^ self visitTaggedElement: anObject.
+]
 
+{ #category : #'as yet unclassified' }
+FortranSrcJsonVisitor >> visitStatementBlock: anASTStatementBlock [
+
+	| block |
+	block := FASTFortranStatementBlock new.
+	block statements: (anASTStatementBlock collect: [ :astStatement | 
+			1 halt.
+		  self visitJsonMap: astStatement ]).
+	^block
 ]
 
 { #category : #'as yet unclassified' }
 FortranSrcJsonVisitor >> visitSubprograms: anObject [
-	self flag: 'TODO generated automatically, please insert your code here'
 
+]
+
+{ #category : #'as yet unclassified' }
+FortranSrcJsonVisitor >> visitSubroutine: anObject [
+
+	| soubroutine |
+	soubroutine := FASTFortranStatementSoubroutine new.
+	soubroutine name: (anObject at: 'name').
+	soubroutine variables:
+		(self visitArguments: (anObject at: 'arguments')).
+	soubroutine body:
+		(self visitStatementBlock: (anObject at: 'blocks')).
+
+	^ soubroutine
 ]
 
 { #category : #'as yet unclassified' }
 FortranSrcJsonVisitor >> visitTag: anObject [
-	self flag: 'TODO generated automatically, please insert your code here'
 
+]
+
+{ #category : #visiting }
+FortranSrcJsonVisitor >> visitTaggedElement: value [
+
+	| selector |
+	
+	selector := self builtVisitSelector: (value at: #tag).
+	^ self perform: selector with: value
 ]
 
 { #category : #'as yet unclassified' }
 FortranSrcJsonVisitor >> visitType: anObject [
-	self flag: 'TODO generated automatically, please insert your code here'
 
+	1 halt.
+]
+
+{ #category : #'as yet unclassified' }
+FortranSrcJsonVisitor >> visitValue: anObject [
+	
+	"| value |"
+	"value := (anObject at: 'tag')."
+	"^ self visitTaggedElement: anObject ."
+	
+	^ self visitArgumentValue: (anObject at: 'value').
+]
+
+{ #category : #'as yet unclassified' }
+FortranSrcJsonVisitor >> visitVariable: anObject [
+
+	| variable |
+	
+	variable := FASTFortranVariable new.
+	variable name: (anObject at: 'contents').
+
+	^ variable
+]
+
+{ #category : #'as yet unclassified' }
+FortranSrcJsonVisitor >> visitWrite: anObject [
+
+	1 halt.
 ]
