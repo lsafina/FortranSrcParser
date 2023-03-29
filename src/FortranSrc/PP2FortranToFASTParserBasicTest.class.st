@@ -1,11 +1,11 @@
 Class {
-	#name : #PP2FortranToFASTParserTest,
+	#name : #PP2FortranToFASTParserBasicTest,
 	#superclass : #PP2FortranSrcGrammarTest,
 	#category : #'FortranSrc-Tests'
 }
 
 { #category : #running }
-PP2FortranToFASTParserTest >> astHaskell: sourceCode [
+PP2FortranToFASTParserBasicTest >> astHaskell: sourceCode [
 
 	| filename option |
 	option := '-v77l -t json encode'.
@@ -22,7 +22,7 @@ PP2FortranToFASTParserTest >> astHaskell: sourceCode [
 ]
 
 { #category : #running }
-PP2FortranToFASTParserTest >> haskellParserPath [
+PP2FortranToFASTParserBasicTest >> haskellParserPath [
 
 	"temporal dirty hard-coding"
 
@@ -31,7 +31,7 @@ PP2FortranToFASTParserTest >> haskellParserPath [
 ]
 
 { #category : #tests }
-PP2FortranToFASTParserTest >> parse: sourceCode [
+PP2FortranToFASTParserBasicTest >> parse: sourceCode [
 
 	self astHaskell: sourceCode.
 	^ FortranSrcJsonVisitor new visit:
@@ -40,7 +40,7 @@ PP2FortranToFASTParserTest >> parse: sourceCode [
 ]
 
 { #category : #tests }
-PP2FortranToFASTParserTest >> parse: sourceCode as: puMarker [
+PP2FortranToFASTParserBasicTest >> parse: sourceCode as: puMarker [
 	| parseSelector |
 	parseSelector := ('parse' , puMarker , ':') asSymbol.
 	self astHaskell: sourceCode.
@@ -52,7 +52,7 @@ PP2FortranToFASTParserTest >> parse: sourceCode as: puMarker [
 ]
 
 { #category : #tests }
-PP2FortranToFASTParserTest >> parse: sourceCode rule: aRule [
+PP2FortranToFASTParserBasicTest >> parse: sourceCode rule: aRule [
 
 	FortranSrcJsonVisitor new visit:
 		('fortran77.f.json' asFileReference readStreamDo: [ :str | 
@@ -60,14 +60,14 @@ PP2FortranToFASTParserTest >> parse: sourceCode rule: aRule [
 ]
 
 { #category : #accessing }
-PP2FortranToFASTParserTest >> setUp [
+PP2FortranToFASTParserBasicTest >> setUp [
 	
 	super setUp.
 	parser := self parserInstance
 ]
 
 { #category : #tests }
-PP2FortranToFASTParserTest >> testBlockData [
+PP2FortranToFASTParserBasicTest >> testBlockData [
 
 	
 	result := self
@@ -81,7 +81,7 @@ PP2FortranToFASTParserTest >> testBlockData [
 ]
 
 { #category : #tests }
-PP2FortranToFASTParserTest >> testConditionalMultipleElse [
+PP2FortranToFASTParserBasicTest >> testConditionalMultipleElse [
 
 	result := self parse: '      PROGRAM MYPROG
          IF ( A ) THEN
@@ -100,7 +100,22 @@ PP2FortranToFASTParserTest >> testConditionalMultipleElse [
 ]
 
 { #category : #tests }
-PP2FortranToFASTParserTest >> testFullBorbk [
+PP2FortranToFASTParserBasicTest >> testDeclaringVariables [
+
+	| mainProgram |
+	result := self parse: '
+      PROGRAM P
+      INTEGER I, IT(10)
+      CHARACTER C, CT(10)
+      END
+ '.
+
+	self assert: result isCollection.
+	"TODO meaningful asserts"
+]
+
+{ #category : #tests }
+PP2FortranToFASTParserBasicTest >> testFullBorbk [
 
 	result := self parse: '      PROGRAM MYPROG
          IF ( A ) THEN
@@ -117,7 +132,7 @@ self assert: result equals: FASTFortranStatementProgram.
 ]
 
 { #category : #tests }
-PP2FortranToFASTParserTest >> testFunction [
+PP2FortranToFASTParserBasicTest >> testFunction [
 
 	result := self parse: '      function ifunc( k, l )
       ifunc = k
@@ -129,7 +144,23 @@ c --- end ---
 ]
 
 { #category : #tests }
-PP2FortranToFASTParserTest >> testProgramWithMultipleProgUnitsWithInvocation2 [
+PP2FortranToFASTParserBasicTest >> testHelloWorld [
+
+	| mainProgram |
+	result := self parse: '      program hello
+      ! This is a comment line; it is ignored by the compiler
+      print *, ''Hello, World!''
+      end program hello
+ '.
+
+	self assert: result isCollection.
+	mainProgram := result first first.
+	self assert: mainProgram class equals: FASTFortranMainProgram.
+	self assert: mainProgram name equals: 'hello'. 
+]
+
+{ #category : #tests }
+PP2FortranToFASTParserBasicTest >> testProgramWithMultipleProgUnitsWithInvocation2 [
 
 self
 		       parse: '      program myprog
@@ -142,7 +173,7 @@ self
 ]
 
 { #category : #tests }
-PP2FortranToFASTParserTest >> testSubroutine [
+PP2FortranToFASTParserBasicTest >> testSubroutine [
 
 	| subrtn |
 	result := self
@@ -161,7 +192,7 @@ PP2FortranToFASTParserTest >> testSubroutine [
 ]
 
 { #category : #tests }
-PP2FortranToFASTParserTest >> testSubroutineWithParameters [
+PP2FortranToFASTParserBasicTest >> testSubroutineWithParameters [
 
 	| subrtn |
 	result := self
@@ -181,7 +212,7 @@ PP2FortranToFASTParserTest >> testSubroutineWithParameters [
 ]
 
 { #category : #tests }
-PP2FortranToFASTParserTest >> testSubroutineWithSeveralStatements [
+PP2FortranToFASTParserBasicTest >> testSubroutineWithSeveralStatements [
 	| res|
 	
 	res := self
