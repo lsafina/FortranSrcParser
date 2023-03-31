@@ -81,6 +81,20 @@ PP2FortranToFASTParserBasicTest >> testBlockData [
 ]
 
 { #category : #tests }
+PP2FortranToFASTParserBasicTest >> testCallSubroutine [
+
+	result := self parse: '
+      program call_sub
+      real :: mat(10, 20)
+      mat(:,:) = 0.0
+      call print_matrix(10, 20, mat)
+      end program call_sub	
+ '.
+
+	self assert: result equals: FASTFortranStatementBlockData
+]
+
+{ #category : #tests }
 PP2FortranToFASTParserBasicTest >> testConditionalMultipleElse [
 
 	result := self parse: '      PROGRAM MYPROG

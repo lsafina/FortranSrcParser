@@ -44,6 +44,15 @@ FortranSrcJsonVisitor >> visit: aJsonElement [
 ]
 
 { #category : #'as yet unclassified' }
+FortranSrcJsonVisitor >> visitAddition: anObject [
+
+	^ FASTFortranArithmeticTypeExpression new
+		  left: (self visit: (anObject at: 'left'));
+		  right: (self visit: (anObject at: 'right'));
+		  op: (anObject at: 'op' at: 'tag')
+]
+
+{ #category : #'as yet unclassified' }
 FortranSrcJsonVisitor >> visitAnno: anObject [
 
 	^ nil.
@@ -60,7 +69,7 @@ FortranSrcJsonVisitor >> visitArgumentValue: anObject [
 { #category : #'as yet unclassified' }
 FortranSrcJsonVisitor >> visitArguments: anASTArguments [
 
-	^ self visitJsonArray: (anASTArguments at: 'list')
+	^ self visit: (anASTArguments "at: 'list'")
 ]
 
 { #category : #'as yet unclassified' }
@@ -79,13 +88,26 @@ FortranSrcJsonVisitor >> visitArray: anObject [
 { #category : #'as yet unclassified' }
 FortranSrcJsonVisitor >> visitAssign_expression: anObject [
 
-	1 halt.
+	"The assignment statement assigns a value to a variable, substring, array element, record, or record field"
+
+	^ FASTFortranStatementAssign new
+		  right: (self visit: (anObject at: 'target'));
+		  left: (self visit: (anObject at: 'expression'))
 ]
 
 { #category : #'as yet unclassified' }
 FortranSrcJsonVisitor >> visitBase_type: anObject [
 
 	^ self perform: (self builtVisitSelectorBaseTypes: anObject) with: anObject
+]
+
+{ #category : #'as yet unclassified' }
+FortranSrcJsonVisitor >> visitBinary: anObject [
+	| selector |
+	
+	selector := self builtVisitSelector: (anObject at: 'op' at: 'tag').
+	^ self perform: selector with: anObject 
+
 ]
 
 { #category : #'as yet unclassified' }
@@ -108,9 +130,23 @@ FortranSrcJsonVisitor >> visitBlocks: anObject [
 
 { #category : #'as yet unclassified' }
 FortranSrcJsonVisitor >> visitCall: anObject [
-	self flag: 'TODO generated automatically, please insert your code here'.
-	1 halt.
 
+	"The CALL statement branches to the specified subroutine, executes the subroutine, and returns to the calling program after finishing the subroutine.
+
+CALL sub [([ar[, ar]])] where sub is a name of the subroutine to be called, ar is an actual argument to be passed to the subroutine "
+
+	| callStatement arguments|
+	
+	callStatement := FASTFortranStatementCall new.
+	arguments := self visit: (anObject at: 'arguments').
+	(arguments first notEmpty) ifTrue: [ callStatement arguments: arguments].
+	
+	"TODO bullshit code, need to be fixed"
+	callStatement name: ((self visit: (anObject at: 'function')) name).
+	
+	^ callStatement  
+	
+	
 ]
 
 { #category : #'as yet unclassified' }
@@ -196,9 +232,26 @@ FortranSrcJsonVisitor >> visitDo: anObject [
 ]
 
 { #category : #'as yet unclassified' }
+FortranSrcJsonVisitor >> visitExpr: anObject [
+
+	"encountered in the list of format variables. for the moment the only seen structure was 
+	expr {contents:[], tag: expr}, which prevents from calling visitTagged element (creates infinite loop), so we visit 	value directly and adapt any other structural variants in the future"
+
+	^ (anObject includesKey: 'contents')
+		  ifTrue: [ self visit: (anObject at: 'contents') ]
+		  ifFalse: [ self visitTaggedElement: anObject ]
+]
+
+{ #category : #'as yet unclassified' }
 FortranSrcJsonVisitor >> visitExternal: anObject [
-	self flag: 'TODO generated automatically, please insert your code here'.
-	1 halt.
+
+	"The EXTERNAL statement specifies procedures or dummy procedures as external, and allows their symbolic names to be used as actual arguments.
+
+EXTERNAL proc [, proc] ...
+where proc is a name of external procedure, dummy procedure, or block data routine. "
+
+	"you will go to hell for this code. TODO rewrite"
+ ^ (FASTFortranStatementExternal new) name: (self visit: (anObject at: 'vars')) first first name.
 
 ]
 
@@ -213,14 +266,27 @@ FortranSrcJsonVisitor >> visitFunction: anObject [
 
 	| function |
 	
-	1 halt.
 	function := FASTFortranStatementFunction new.
 	function name: (anObject at: 'name').
 	function arguments: (self visitArguments: (anObject at: 'arguments')).
-	function body: (self visitArguments: (anObject at: 'blocks')).
+	
+	(anObject includesKey: 'body') ifTrue: [ function body: (self visitArguments: (anObject at: 'body')) ]
+	ifFalse: [ function body: (self visitArguments: (anObject at: 'blocks'))  ]
+	.
+	
 	^ function. 
 	
 	
+]
+
+{ #category : #'as yet unclassified' }
+FortranSrcJsonVisitor >> visitFunction_call: anObject [
+
+	"not a statement. call to a certain funstions (INTRINSIC, EXTERNAL) in expressions do not require a call statement"
+
+	^ FASTFortranFunctionCall new
+		  name: (self visit: (anObject at: 'function')) name;
+		  arguments: (self visit: (anObject at: 'arguments'))
 ]
 
 { #category : #'as yet unclassified' }
@@ -232,9 +298,10 @@ FortranSrcJsonVisitor >> visitIf: anObject [
 
 { #category : #'as yet unclassified' }
 FortranSrcJsonVisitor >> visitImplicit: anObject [
-	self flag: 'TODO generated automatically, please insert your code here'.
-	1 halt.
-
+	
+	"correspond to the statement implicit none. for the moment ignored"
+	
+	^ nil
 ]
 
 { #category : #'as yet unclassified' }
@@ -264,7 +331,6 @@ FortranSrcJsonVisitor >> visitJsonArray: aJsonArray [
 	"process JSON Array"
 
 	^ aJsonArray collect: [ :value | 
-			"1 halt."
 		  (value includesKey: 'tag')
 			  ifTrue: [ self visitTaggedElement: value ]
 			  ifFalse: [ self visit: value ] ]
@@ -317,6 +383,22 @@ FortranSrcJsonVisitor >> visitList: anObject [
 ]
 
 { #category : #'as yet unclassified' }
+FortranSrcJsonVisitor >> visitLogical: anObject [
+	self flag: 'TODO generated automatically, please insert your code here'.
+	1 halt.
+	
+	(FASTFortranLogicalTypeExpression new)
+
+]
+
+{ #category : #'as yet unclassified' }
+FortranSrcJsonVisitor >> visitLogicalBaseType: anObject [
+	self flag: 'TODO generated automatically, please insert your code here'.
+	1 halt.
+
+]
+
+{ #category : #'as yet unclassified' }
 FortranSrcJsonVisitor >> visitMain: anObject [
 	
 	| mainProgram |
@@ -342,7 +424,9 @@ FortranSrcJsonVisitor >> visitMeta: anObject [
 { #category : #'as yet unclassified' }
 FortranSrcJsonVisitor >> visitName: anObject [
 
-	1 halt.
+	"encountered in the list of format variables. for the moment ignored"
+
+	^ nil
 ]
 
 { #category : #'as yet unclassified' }
@@ -379,9 +463,16 @@ FortranSrcJsonVisitor >> visitProgram_units: anObject [
 ]
 
 { #category : #'as yet unclassified' }
+FortranSrcJsonVisitor >> visitReal: anObject [
+
+	^ FASTFortranStatementReal new contents: (anObject at: 'contents')
+
+]
+
+{ #category : #'as yet unclassified' }
 FortranSrcJsonVisitor >> visitRealBaseType: anObject [
-	self flag: 'TODO generated automatically, please insert your code here'.
-	1 halt.
+	
+	^ FASTFortranStatementReal new
 
 ]
 
@@ -455,10 +546,14 @@ FortranSrcJsonVisitor >> visitStatementBlock: anASTStatementBlock [
 
 { #category : #'as yet unclassified' }
 FortranSrcJsonVisitor >> visitString: anObject [
-	
-	^ (anObject equals: nil) 
-		ifTrue: [ FASTFortranStringLiteral new]
-		ifFalse: [ FASTFortranStringLiteral new contents: (anObject at: 'contents') ]
+
+	^ FASTFortranStringLiteral new contents: (anObject at: 'contents')
+]
+
+{ #category : #'as yet unclassified' }
+FortranSrcJsonVisitor >> visitStringBaseType: anObject [
+
+	^ FASTFortranStringLiteral new
 ]
 
 { #category : #'as yet unclassified' }
@@ -530,5 +625,15 @@ FortranSrcJsonVisitor >> visitVariable: anObject [
 { #category : #'as yet unclassified' }
 FortranSrcJsonVisitor >> visitWrite: anObject [
 
-	1 halt.
+	"write statement. should follow the pattern: 
+	WRITE([UNIT=] u [, [FMT=] f] [, IOSTAT=ios] [, REC=rn] [, ERR=s]) iolist
+	WRITE([ UNIT=] u, [NML=] grname [, IOSTAT=ios] [, ERR=s])"
+	
+	| statement |
+
+	statement := FASTFortranStatementWrite new.
+	statement format: (self visit: (anObject at: 'format')).
+	statement arguments: (self visit: (anObject at: 'arguments')).
+	
+	^ statement
 ]

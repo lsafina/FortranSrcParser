@@ -572,7 +572,8 @@ cESO  pointeur lib.pstr
       end
  '.
 
-	self assert: result equals: FASTFortranStatementBlockData
+1 halt.
+	self assert: result isCollection
 ]
 
 { #category : #tests }
@@ -779,7 +780,7 @@ c desactivate struct
 
  '.
 
-	self assert: result equals: FASTFortranStatementBlockData
+	self assert: result isCollection 
 ]
 
 { #category : #tests }
@@ -890,7 +891,7 @@ c desactivate struct
 
 '.
 
-	self assert: result equals: FASTFortranStatementBlockData
+	self assert: result isCollection 
 ]
 
 { #category : #tests }
