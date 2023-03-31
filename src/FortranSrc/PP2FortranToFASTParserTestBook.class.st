@@ -466,11 +466,10 @@ c we print the user who borrwed books and the number of books
 c borrowed    
       do ibor=1, urcnt
         ur = mypnt(lib,ESOar(ESOat(lb,uref),ibor))
-cESO    segact, ur
-        write(*,*)''user num'',iur, ESOat(ur,uname) , ESOar(ESOat(ur,ubb),ibor)
-cESO    segdes, ur*nomod
-      end do     
 
+        write(*,*)''user num'',iur,ESOar(ESOat(ur,ubb),ibor)
+cESO    segdes, ur*nomod
+      end do
 c desactivate head segment
 cESO  segdes, lb*nomod
 

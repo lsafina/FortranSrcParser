@@ -95,6 +95,24 @@ PP2FortranToFASTParserBasicTest >> testCallSubroutine [
 ]
 
 { #category : #tests }
+PP2FortranToFASTParserBasicTest >> testConditionalBasicIf2 [
+
+	result := self parse: '
+      PROGRAM MYPROG
+      IF ( X .LT. Y ) THEN 
+      M = 0
+      ELSE
+      M = 0
+      I = 1 
+      END IF
+      END
+'.
+	"as: #Program."
+
+	self assert: result equals: FASTFortranProgram
+]
+
+{ #category : #tests }
 PP2FortranToFASTParserBasicTest >> testConditionalMultipleElse [
 
 	result := self parse: '      PROGRAM MYPROG
@@ -102,13 +120,46 @@ PP2FortranToFASTParserBasicTest >> testConditionalMultipleElse [
             I = 1
          else if ( b ) then
             i = 2
+            M = 0
          else if ( c ) then
             i = 3         
          ELSE
             I = 4
          END IF
       END
-'as: #Program.
+'.
+	"as: #Program."
+
+	self assert: result isCollection 
+]
+
+{ #category : #tests }
+PP2FortranToFASTParserBasicTest >> testConditionalsBasicIf [
+
+	result := self parse: '      PROGRAM MYPROG
+      IF ( A ) THEN
+      I = 1
+      print *, ''Hello, World!''
+      END IF
+      END
+'.
+	"as: #Program."
+
+	self assert: result equals: FASTFortranProgram
+]
+
+{ #category : #tests }
+PP2FortranToFASTParserBasicTest >> testConditionalsBasicIfElse [
+
+	result := self parse: '      PROGRAM MYPROG
+      	IF ( L ) THEN 
+	   N=N+1
+	   CALL CALC 
+	   ELSE 
+	   K=K+1
+	   END IF
+'.
+	"as: #Program."
 
 	self assert: result equals: FASTFortranProgram
 ]

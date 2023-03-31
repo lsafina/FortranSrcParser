@@ -26,6 +26,20 @@ FortranSrcJsonVisitor >> doesNotUnderstand: message [
 ]
 
 { #category : #'as yet unclassified' }
+FortranSrcJsonVisitor >> first [ anObject
+	self flag: 'TODO generated automatically, please insert your code here'.
+	1 halt.
+
+]
+
+{ #category : #'as yet unclassified' }
+FortranSrcJsonVisitor >> parseProgram: anObject [
+	
+	1 halt.
+
+]
+
+{ #category : #'as yet unclassified' }
 FortranSrcJsonVisitor >> parseSubroutine: anObject [
 
 	^ self visitJsonArray: (anObject at: #program_units)
@@ -184,6 +198,25 @@ nlist: List of variable names, array names, and array declarators  "
 ]
 
 { #category : #'as yet unclassified' }
+FortranSrcJsonVisitor >> visitConditions: anObject else: elseObject [
+	
+	"read recursiveley a list of ""if then"" end ""if else"", adds else part if present"
+	| conditional |
+
+	conditional := FASTFortranStatementIfBlock new
+		             condition: (self visitTaggedElement: anObject first first);
+		             thenPart: (self visit: anObject first last).
+
+	anObject size > 1
+		ifTrue: [conditional elsePart: (self visitConditions: (anObject allButFirst)  else:  elseObject) ]
+		ifFalse: [ 
+			elseObject ifNotNil: [ 
+				conditional elsePart: (self visit: elseObject) ] ].
+	
+	^ conditional
+]
+
+{ #category : #'as yet unclassified' }
 FortranSrcJsonVisitor >> visitContents: anObject [
 
 	1 halt.
@@ -226,6 +259,12 @@ FortranSrcJsonVisitor >> visitDims: anObject [
 
 { #category : #'as yet unclassified' }
 FortranSrcJsonVisitor >> visitDo: anObject [
+
+	1 halt
+]
+
+{ #category : #'as yet unclassified' }
+FortranSrcJsonVisitor >> visitEq: anObject [
 	self flag: 'TODO generated automatically, please insert your code here'.
 	1 halt.
 
@@ -291,9 +330,15 @@ FortranSrcJsonVisitor >> visitFunction_call: anObject [
 
 { #category : #'as yet unclassified' }
 FortranSrcJsonVisitor >> visitIf: anObject [
-	self flag: 'TODO generated automatically, please insert your code here'.
-	1 halt.
 
+	".blocks is an array with one block dedicated to else
+	.conditionals is an erray where each element represent if and if else consequently 
+	.conditionals[_].[0] represents a condition
+	.conditionals[_].[1] is an array containing all statements of the correpsonding block"
+
+	^ self
+		  visitConditions: (anObject at: 'conditions')
+		  else: (anObject at: 'blocks')
 ]
 
 { #category : #'as yet unclassified' }
@@ -399,6 +444,13 @@ FortranSrcJsonVisitor >> visitLogicalBaseType: anObject [
 ]
 
 { #category : #'as yet unclassified' }
+FortranSrcJsonVisitor >> visitLt: anObject [
+	self flag: 'TODO generated automatically, please insert your code here'.
+	1 halt.
+
+]
+
+{ #category : #'as yet unclassified' }
 FortranSrcJsonVisitor >> visitMain: anObject [
 	
 	| mainProgram |
@@ -480,6 +532,13 @@ FortranSrcJsonVisitor >> visitRealBaseType: anObject [
 FortranSrcJsonVisitor >> visitResult: anObject [
 
 	1 halt.
+]
+
+{ #category : #'as yet unclassified' }
+FortranSrcJsonVisitor >> visitReturn: anObject [
+	self flag: 'TODO generated automatically, please insert your code here'.
+	1 halt.
+
 ]
 
 { #category : #'as yet unclassified' }
