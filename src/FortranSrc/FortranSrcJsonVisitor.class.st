@@ -674,18 +674,12 @@ FortranSrcJsonVisitor >> visitSubroutine: anObject [
 ]
 
 { #category : #'as yet unclassified' }
-FortranSrcJsonVisitor >> visitSubscript: anObject [
-	"self flag: 'TODO generated automatically, please insert your code here'.
-	1 halt."
-	
-	^ nil
-
-]
-
-{ #category : #'as yet unclassified' }
 FortranSrcJsonVisitor >> visitSubtraction: anObject [
-	self flag: 'TODO generated automatically, please insert your code here'.
-	1 halt.
+	
+	^ FASTFortranArithmeticTypeExpression new
+		  left: (self visit: (anObject at: 'left'));
+		  right: (self visit: (anObject at: 'right'));
+		  op: (anObject at: 'op' at: 'tag')
 
 ]
 

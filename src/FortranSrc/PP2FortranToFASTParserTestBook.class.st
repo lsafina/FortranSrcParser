@@ -1005,7 +1005,7 @@ c the array
 c adjust the array 
       do jr=ir , ubbcnt-1
 c        ur.ubb(jr) == ur.ubb(jr + 1) -> erreur parsing normal
-         ESOar(ESOat(ur,ubb),jr) = ESOat(ur,ubb)(jr + 1)
+         ESOar(ESOat(ur,ubb),jr) = ESOat(ur,ubb(jr + 1))
       end do
 
       ubbcnt = ubbcnt - 1   
@@ -1027,5 +1027,5 @@ c desactivate structure
 
 '.
 
-	self assert: result isCollection 
+	self assert: result isCollection
 ]
