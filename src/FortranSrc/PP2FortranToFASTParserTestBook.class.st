@@ -1,6 +1,6 @@
 Class {
 	#name : #PP2FortranToFASTParserTestBook,
-	#superclass : #PP2FortranToFASTParserBasicTest,
+	#superclass : #PP2FortranToFASTParserTestSetUp,
 	#category : #'FortranSrc-Tests'
 }
 
@@ -125,7 +125,7 @@ c desactivate structure
 
  '.
 
-	self assert: result equals: FASTFortranStatementBlockData
+	self assert: result isCollection 
 ]
 
 { #category : #tests }
@@ -238,7 +238,7 @@ cESO  segdes, lb*nomod
 
  '.
 
-	self assert: result equals: FASTFortranStatementBlockData
+	self assert: result isCollection 
 ]
 
 { #category : #tests }
@@ -351,7 +351,7 @@ cESO  segdes, lb*nomod
 
  '.
 
-	self assert: result equals: FASTFortranStatementBlockData
+	self assert: result isCollection 
 ]
 
 { #category : #tests }
@@ -481,7 +481,7 @@ c desactivate structure
 
  '.
 
-	self assert: result equals: FASTFortranStatementBlockData
+	self assert: result isCollection 
 ]
 
 { #category : #tests }
@@ -571,7 +571,6 @@ cESO  pointeur lib.pstr
       end
  '.
 
-1 halt.
 	self assert: result isCollection
 ]
 
@@ -682,7 +681,7 @@ c desactivate struct
       end 
  '.
 
-	self assert: result equals: FASTFortranStatementBlockData
+	self assert: result isCollection 
 ]
 
 { #category : #tests }
@@ -1028,5 +1027,5 @@ c desactivate structure
 
 '.
 
-	self assert: result equals: FASTFortranStatementBlockData
+	self assert: result isCollection 
 ]

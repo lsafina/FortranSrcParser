@@ -26,20 +26,6 @@ FortranSrcJsonVisitor >> doesNotUnderstand: message [
 ]
 
 { #category : #'as yet unclassified' }
-FortranSrcJsonVisitor >> first [ anObject
-	self flag: 'TODO generated automatically, please insert your code here'.
-	1 halt.
-
-]
-
-{ #category : #'as yet unclassified' }
-FortranSrcJsonVisitor >> parseProgram: anObject [
-	
-	1 halt.
-
-]
-
-{ #category : #'as yet unclassified' }
 FortranSrcJsonVisitor >> parseSubroutine: anObject [
 
 	^ self visitJsonArray: (anObject at: #program_units)
@@ -198,6 +184,13 @@ nlist: List of variable names, array names, and array declarators  "
 ]
 
 { #category : #'as yet unclassified' }
+FortranSrcJsonVisitor >> visitConcatenation: anObject [
+	self flag: 'TODO generated automatically, please insert your code here'.
+	1 halt.
+
+]
+
+{ #category : #'as yet unclassified' }
 FortranSrcJsonVisitor >> visitConditions: anObject else: elseObject [
 	
 	"read recursiveley a list of ""if then"" end ""if else"", adds else part if present"
@@ -220,6 +213,13 @@ FortranSrcJsonVisitor >> visitConditions: anObject else: elseObject [
 FortranSrcJsonVisitor >> visitContents: anObject [
 
 	1 halt.
+]
+
+{ #category : #'as yet unclassified' }
+FortranSrcJsonVisitor >> visitContinue: anObject [
+	
+	^ FASTFortranStatementContinue new
+
 ]
 
 { #category : #'as yet unclassified' }
@@ -260,14 +260,43 @@ FortranSrcJsonVisitor >> visitDims: anObject [
 { #category : #'as yet unclassified' }
 FortranSrcJsonVisitor >> visitDo: anObject [
 
-	1 halt
+	| loopControl increment|
+	
+	loopControl := anObject at: 'do_spec'.
+	increment := (loopControl at: 'increment').
+	
+	^ (FASTFortranStatementDo new)
+	 block: (self visitJsonArray: (anObject at: 'body'));
+	loopControlInitial: (self visitTaggedElement: (loopControl at: 'initial'));
+	loopControlLimit: (self visitTaggedElement: (loopControl at: 'limit'));
+	loopControlIncrement: ((increment isNotNil) ifTrue:[self visitTaggedElement: (loopControl at: 'increment') ] ifFalse: [nil]).
+
 ]
 
 { #category : #'as yet unclassified' }
 FortranSrcJsonVisitor >> visitEq: anObject [
-	self flag: 'TODO generated automatically, please insert your code here'.
-	1 halt.
+	
+	^ (FASTFortranArithmeticTypeExpression new) 
+		left: (self visitTaggedElement: (anObject at: 'left'));
+		right: (self visitTaggedElement: (anObject at: 'right')); 
+		op: (anObject at: 'op' at: 'tag')
 
+]
+
+{ #category : #'as yet unclassified' }
+FortranSrcJsonVisitor >> visitExit: anObject [
+	
+	^ FASTFortranStatementExit new
+
+]
+
+{ #category : #'as yet unclassified' }
+FortranSrcJsonVisitor >> visitExponentiation: anObject [
+
+	^ FASTFortranArithmeticTypeExpression new
+		  left: (self visit: (anObject at: 'left'));
+		  right: (self visit: (anObject at: 'right'));
+		  op: (anObject at: 'op' at: 'tag')
 ]
 
 { #category : #'as yet unclassified' }
@@ -326,6 +355,15 @@ FortranSrcJsonVisitor >> visitFunction_call: anObject [
 	^ FASTFortranFunctionCall new
 		  name: (self visit: (anObject at: 'function')) name;
 		  arguments: (self visit: (anObject at: 'arguments'))
+]
+
+{ #category : #'as yet unclassified' }
+FortranSrcJsonVisitor >> visitGoto: anObject [
+
+	"so far only unconditional case is processed"
+	
+	^ (FASTFortranStatementGoToUnconditional new) label: (self visitTaggedElement: (anObject at: 'target'))	
+
 ]
 
 { #category : #'as yet unclassified' }
@@ -429,17 +467,21 @@ FortranSrcJsonVisitor >> visitList: anObject [
 
 { #category : #'as yet unclassified' }
 FortranSrcJsonVisitor >> visitLogical: anObject [
-	self flag: 'TODO generated automatically, please insert your code here'.
-	1 halt.
 	
-	(FASTFortranLogicalTypeExpression new)
+	| constantContent |
+	constantContent := (anObject at: 'contents') first.
+	constantContent ifTrue:[ ^ FASTFortranConstantLogicalTrue ].
+	constantContent ifFalse:[ ^ FASTFortranConstantLogicalFalse ].	
+	
+	"TODO exception: unexpected output"
+	1 halt.
 
 ]
 
 { #category : #'as yet unclassified' }
 FortranSrcJsonVisitor >> visitLogicalBaseType: anObject [
-	self flag: 'TODO generated automatically, please insert your code here'.
-	1 halt.
+
+	^ FASTFortranStatementLogical new
 
 ]
 
@@ -490,15 +532,10 @@ FortranSrcJsonVisitor >> visitOptions: anObject [
 
 { #category : #'as yet unclassified' }
 FortranSrcJsonVisitor >> visitPrint: anObject [
-	
-	| printStatement | 
-	
-	printStatement := FASTFortranStatementPrint new.
-	
-	printStatement format: (self visit: (anObject at: 'format')).
-	printStatement variablesList: (self visit: (anObject at: 'arguments')).	
-	
-	^ printStatement 
+
+	^ FASTFortranStatementPrint new
+		  format: (self visit: (anObject at: 'format'));
+		  variablesList: (self visit: (anObject at: 'arguments'))
 ]
 
 { #category : #'as yet unclassified' }
@@ -536,8 +573,8 @@ FortranSrcJsonVisitor >> visitResult: anObject [
 
 { #category : #'as yet unclassified' }
 FortranSrcJsonVisitor >> visitReturn: anObject [
-	self flag: 'TODO generated automatically, please insert your code here'.
-	1 halt.
+	
+	^ FASTFortranStatementReturn new
 
 ]
 
@@ -634,6 +671,22 @@ FortranSrcJsonVisitor >> visitSubroutine: anObject [
 		(self visitStatementBlock: (anObject at: 'blocks')).
 
 	^ soubroutine
+]
+
+{ #category : #'as yet unclassified' }
+FortranSrcJsonVisitor >> visitSubscript: anObject [
+	"self flag: 'TODO generated automatically, please insert your code here'.
+	1 halt."
+	
+	^ nil
+
+]
+
+{ #category : #'as yet unclassified' }
+FortranSrcJsonVisitor >> visitSubtraction: anObject [
+	self flag: 'TODO generated automatically, please insert your code here'.
+	1 halt.
+
 ]
 
 { #category : #'as yet unclassified' }

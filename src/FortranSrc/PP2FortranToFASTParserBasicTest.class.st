@@ -1,70 +1,8 @@
 Class {
 	#name : #PP2FortranToFASTParserBasicTest,
-	#superclass : #PP2FortranSrcGrammarTest,
+	#superclass : #PP2FortranToFASTParserTestSetUp,
 	#category : #'FortranSrc-Tests'
 }
-
-{ #category : #running }
-PP2FortranToFASTParserBasicTest >> astHaskell: sourceCode [
-
-	| filename option |
-	option := '-v77l -t json encode'.
-	filename := './fortran77.f'.
-	filename asFileReference writeStreamDo: [ :stream | 
-		stream truncate.
-		stream
-		<< (sourceCode copy replaceAll: Character cr with: Character lf) ].
-	
-	LibC runCommand: ('{1} {2} "{3}" >"{3}.json" 2>"{3}.err"' format: { 
-				 self haskellParserPath.
-				 option.
-				 filename. })
-]
-
-{ #category : #running }
-PP2FortranToFASTParserBasicTest >> haskellParserPath [
-
-	"temporal dirty hard-coding"
-
-	^ '/Users/lsafina/.cabal/bin/fortran-src-extras serialize'
-	"^ '/Users/lsafina/.cabal/bin/fortran-src' - when we need to receive a haskell-based representation"
-]
-
-{ #category : #tests }
-PP2FortranToFASTParserBasicTest >> parse: sourceCode [
-
-	self astHaskell: sourceCode.
-	^ FortranSrcJsonVisitor new visit:
-		('fortran77.f.json' asFileReference readStreamDo: [ :str | 
-			 NeoJSONReader fromString: str contents ])
-]
-
-{ #category : #tests }
-PP2FortranToFASTParserBasicTest >> parse: sourceCode as: puMarker [
-	| parseSelector |
-	parseSelector := ('parse' , puMarker , ':') asSymbol.
-	self astHaskell: sourceCode.
-	^ FortranSrcJsonVisitor new
-		perform: parseSelector
-		with:
-		  ('fortran77.f.json' asFileReference readStreamDo: [ :str | 
-			   NeoJSONReader fromString: str contents ])
-]
-
-{ #category : #tests }
-PP2FortranToFASTParserBasicTest >> parse: sourceCode rule: aRule [
-
-	FortranSrcJsonVisitor new visit:
-		('fortran77.f.json' asFileReference readStreamDo: [ :str | 
-			 NeoJSONReader fromString: str contents ]).
-]
-
-{ #category : #accessing }
-PP2FortranToFASTParserBasicTest >> setUp [
-	
-	super setUp.
-	parser := self parserInstance
-]
 
 { #category : #tests }
 PP2FortranToFASTParserBasicTest >> testBlockData [
@@ -180,48 +118,103 @@ PP2FortranToFASTParserBasicTest >> testDeclaringVariables [
 ]
 
 { #category : #tests }
-PP2FortranToFASTParserBasicTest >> testFullBorbk [
+PP2FortranToFASTParserBasicTest >> testDo [
 
-	result := self parse: '      PROGRAM MYPROG
-         IF ( A ) THEN
-            I = 1
-         ELSE IF ( B ) THEN
-            I = 2
-         ELSE
-            I = 3
-         END IF
-      END
-'.
+	"The DO statement repeatedly executes a set of statements.
+	Syntax: DO s [,] loop-control or DO loop-control @
+	where s is a statement number. The form of loop-control is variable = e1, e2 [, e3], 
+	variable is of type integer, real, or double precision,
+	expressions e_n are of type integer, real or double precision, specifying initial, limit, and increment values respectively"
 
-self assert: result equals: FASTFortranStatementProgram. 
+	result := self parse: '
+      program hello	   
+        do i=1,10
+          print *, i**2
+          print *, i**3
+        end do
+      end program hello
+ '.
+
+	self assert: result isCollection
+]
+
+{ #category : #tests }
+PP2FortranToFASTParserBasicTest >> testDoIncrement [
+
+	"The DO statement repeatedly executes a set of statements.
+	Syntax: DO s [,] loop-control or DO loop-control @
+	where s is a statement number. The form of loop-control is variable = e1, e2 [, e3], 
+	variable is of type integer, real, or double precision,
+	expressions e_n are of type integer, real or double precision, specifying initial, limit, and increment values respectively"
+
+	result := self parse: '
+      program hello	   
+       do i=2,10,2
+        write (*,*) i
+       end do
+      end program hello
+ '.
+
+	self assert: result isCollection
+]
+
+{ #category : #tests }
+PP2FortranToFASTParserBasicTest >> testDoLineNumber [
+
+	"The DO statement repeatedly executes a set of statements.
+	Syntax: DO s [,] loop-control or DO loop-control @
+	where s is a statement number. The form of loop-control is variable = e1, e2 [, e3], 
+	variable is of type integer, real, or double precision,
+	expressions e_n are of type integer, real or double precision, specifying initial, limit, and increment values respectively"
+
+	result := self parse: '
+      program hello	
+      CHARACTER *72 A
+       DO 10 i=1,3 
+       WRITE (*,82)A
+10     CONTINUE
+      end program hello
+ '.
+
+	self assert: result isCollection
+]
+
+{ #category : #tests }
+PP2FortranToFASTParserBasicTest >> testDoNested [
+
+	"The DO statement repeatedly executes a set of statements.
+	Syntax: DO s [,] loop-control or DO loop-control @
+	where s is a statement number. The form of loop-control is variable = e1, e2 [, e3], 
+	variable is of type integer, real, or double precision,
+	expressions e_n are of type integer, real or double precision, specifying initial, limit, and increment values respectively"
+
+	result := self parse: '
+      N = 0 
+      DO 210 I = 1, 10 
+      J = I 
+      DO 200 K = 5, 1 
+        L = K
+        N = N + 1 
+      200 CONTINUE 
+      210 CONTINUE 
+      WRITE(*,*)''I ='',I, '', J ='',J, '', K ='',K, 
+&              '', N ='',N, '', L ='',L
+       END
+ '.
+
+	self assert: result isCollection
 ]
 
 { #category : #tests }
 PP2FortranToFASTParserBasicTest >> testFunction [
 
-	result := self parse: '      function ifunc( k, l )
+	result := self parse: '
+      function ifunc( k, l )
       ifunc = k
       end
-c --- end ---
 '.
 
 	self assert: result class equals: FASTFortranStatementFunction
-]
-
-{ #category : #tests }
-PP2FortranToFASTParserBasicTest >> testHelloWorld [
-
-	| mainProgram |
-	result := self parse: '      program hello
-      ! This is a comment line; it is ignored by the compiler
-      print *, ''Hello, World!''
-      end program hello
- '.
-
-	self assert: result isCollection.
-	mainProgram := result first first.
-	self assert: mainProgram class equals: FASTFortranMainProgram.
-	self assert: mainProgram name equals: 'hello'. 
 ]
 
 { #category : #tests }
@@ -242,8 +235,9 @@ PP2FortranToFASTParserBasicTest >> testSubroutine [
 
 	| subrtn |
 	result := self
-		          parse: '      subroutine hello()
-        write(*,*) "hello"
+		          parse: '
+      subroutine hello()
+      write(*,*) "hello"
       end
 '
 		          as: #Routine.
@@ -252,8 +246,7 @@ PP2FortranToFASTParserBasicTest >> testSubroutine [
 	subrtn := result first.
 
 	self assert: subrtn class equals: FASTFortranStatementSoubroutine.
-	self assert: subrtn name equals: 'hello'.
-
+	self assert: subrtn name equals: 'hello'
 ]
 
 { #category : #tests }
@@ -288,7 +281,7 @@ PP2FortranToFASTParserBasicTest >> testSubroutineWithSeveralStatements [
         write(*,*) i, ''first='', fn, '', last='', ln, '' and name='', n
       end
 '
-		as: #Subroutine.
+	.
 		
 	1 halt.
 
