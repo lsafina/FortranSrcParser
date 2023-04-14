@@ -26,6 +26,13 @@ FortranSrcJsonVisitor >> doesNotUnderstand: message [
 ]
 
 { #category : #'as yet unclassified' }
+FortranSrcJsonVisitor >> parseRoutine: anObject [
+	self flag: 'TODO generated automatically, please insert your code here'.
+	1 halt.
+
+]
+
+{ #category : #'as yet unclassified' }
 FortranSrcJsonVisitor >> parseSubroutine: anObject [
 
 	^ self visitJsonArray: (anObject at: #program_units)
