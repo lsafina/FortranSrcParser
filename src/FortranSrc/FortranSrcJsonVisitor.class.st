@@ -173,7 +173,7 @@ FortranSrcJsonVisitor >> visitCharacterBaseType: anObject [
 { #category : #'as yet unclassified' }
 FortranSrcJsonVisitor >> visitComment: anObject [
 
-	^ FASTFortranComment new comment: (anObject at: 'comment')
+	^ FASTFortranComment new content: (anObject at: 'comment')
 ]
 
 { #category : #'as yet unclassified' }
@@ -238,13 +238,11 @@ FortranSrcJsonVisitor >> visitData: anObject [
 { #category : #'as yet unclassified' }
 FortranSrcJsonVisitor >> visitDeclaration: anObject [
 	
-	| declaration |
+	| type |
 	
-	declaration := FASTFortranDeclaration new.
-	declaration type: (self visit: (anObject at: 'type') ) first.
-	declaration declarators: (self visitDeclarators: (anObject at: 'declarators') ).
-	
-	^ declaration.
+	type := (self visit: (anObject at: 'type') ) first.
+	^ (self visitDeclarators: (anObject at: 'declarators'))
+		do: [ :v | v type: type].
 	
 ]
 
@@ -588,9 +586,9 @@ FortranSrcJsonVisitor >> visitReturn: anObject [
 { #category : #'as yet unclassified' }
 FortranSrcJsonVisitor >> visitScalar: anObject [
 
-	"its a bullshit code that need to be rewritten"
+	"not sure if it is correct"
 	
-	^ (FASTFortranScalarVariable new) name: ((self visitVariable: (anObject at: 'variable')) name)
+	^ self visitVariable: (anObject at: 'variable') 
 
 
 ]
@@ -669,15 +667,11 @@ FortranSrcJsonVisitor >> visitSubprograms: anObject [
 { #category : #'as yet unclassified' }
 FortranSrcJsonVisitor >> visitSubroutine: anObject [
 
-	| soubroutine |
-	soubroutine := FASTFortranStatementSoubroutine new.
-	soubroutine name: (anObject at: 'name').
-	soubroutine variables:
-		(self visitArguments: (anObject at: 'arguments')).
-	soubroutine body:
-		(self visitStatementBlock: (anObject at: 'blocks')).
-
-	^ soubroutine
+	^ FASTFortranStatementSubroutine new
+		  name: (anObject at: 'name');
+		  parameters:
+			  (self visitArguments: (anObject at: 'arguments')) first;
+		  body: (self visitStatementBlock: (anObject at: 'blocks'))
 ]
 
 { #category : #'as yet unclassified' }
