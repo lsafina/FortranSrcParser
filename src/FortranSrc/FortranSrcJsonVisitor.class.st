@@ -53,7 +53,7 @@ FortranSrcJsonVisitor >> visit: aJsonElement [
 { #category : #'as yet unclassified' }
 FortranSrcJsonVisitor >> visitAddition: anObject [
 
-	^ FASTFortranArithmeticTypeExpression new
+	^ FASTFortranArithmeticExpression new
 		  left: (self visit: (anObject at: 'left'));
 		  right: (self visit: (anObject at: 'right'));
 		  op: (anObject at: 'op' at: 'tag')
@@ -84,7 +84,7 @@ FortranSrcJsonVisitor >> visitArray: anObject [
 	
 	"its a bullshit code that need to be rewritten"
 
-	^ FASTFortranArrayVariable new name:
+	^ FASTFortranArray new name:
 		  (self visitVariable: (anObject at: 'variable')) name
 
 	"TODO process dimensions"
@@ -97,9 +97,9 @@ FortranSrcJsonVisitor >> visitAssign_expression: anObject [
 
 	"The assignment statement assigns a value to a variable, substring, array element, record, or record field"
 
-	^ FASTFortranStatementAssign new
-		  right: (self visit: (anObject at: 'target'));
-		  left: (self visit: (anObject at: 'expression'))
+	^ FASTFortranAssignmentStatement new
+		  variable: (self visit: (anObject at: 'target'));
+		  expression: (self visit: (anObject at: 'expression'))
 ]
 
 { #category : #'as yet unclassified' }
@@ -121,7 +121,7 @@ FortranSrcJsonVisitor >> visitBinary: anObject [
 FortranSrcJsonVisitor >> visitBlock_data: anObject [
 
 	| value |
-	value := FASTFortranStatementBlockData new.
+	value := FASTFortranBlockData new.
 	value name: (anObject at: 'name').
 
 	value statements: (self visit: (anObject at: 'blocks')).
@@ -144,9 +144,9 @@ CALL sub [([ar[, ar]])] where sub is a name of the subroutine to be called, ar i
 
 	| callStatement arguments|
 	
-	callStatement := FASTFortranStatementCall new.
+	callStatement := FASTFortranCallStatement new.
 	arguments := self visit: (anObject at: 'arguments').
-	(arguments first notEmpty) ifTrue: [ callStatement arguments: arguments].
+	(arguments first notEmpty) ifTrue: [ callStatement arguments: (arguments first)].
 	
 	"TODO bullshit code, need to be fixed"
 	callStatement name: ((self visit: (anObject at: 'function')) name).
@@ -187,7 +187,7 @@ nlist: List of variable names, array names, and array declarators  "
 
 	| value |
 	
-	value := FASTFortranStatementCommon new
+	value := FASTFortranCommonStatement new
 ]
 
 { #category : #'as yet unclassified' }
@@ -203,7 +203,7 @@ FortranSrcJsonVisitor >> visitConditions: anObject else: elseObject [
 	"read recursiveley a list of ""if then"" end ""if else"", adds else part if present"
 	| conditional |
 
-	conditional := FASTFortranStatementIfBlock new
+	conditional := FASTFortranIfBlockStatement new
 		             condition: (self visitTaggedElement: anObject first first);
 		             thenPart: (self visit: anObject first last).
 
@@ -225,7 +225,7 @@ FortranSrcJsonVisitor >> visitContents: anObject [
 { #category : #'as yet unclassified' }
 FortranSrcJsonVisitor >> visitContinue: anObject [
 	
-	^ FASTFortranStatementContinue new
+	^ FASTFortranContinueStatement new
 
 ]
 
@@ -268,20 +268,23 @@ FortranSrcJsonVisitor >> visitDo: anObject [
 	| loopControl increment|
 	
 	loopControl := anObject at: 'do_spec'.
-	increment := (loopControl at: 'increment').
+	increment := (loopControl at: 'increment').	
+	loopControl 
+	init: (self visitTaggedElement: (loopControl at: 'initial'));
+	limit: (self visitTaggedElement: (loopControl at: 'limit'));
+	increment: ((increment isNotNil) ifTrue:[self visitTaggedElement: (loopControl at: 'increment') ] ifFalse: [nil]).
 	
-	^ (FASTFortranStatementDo new)
+	^ (FASTFortranDoStatement new)
 	 block: (self visitJsonArray: (anObject at: 'body'));
-	loopControlInitial: (self visitTaggedElement: (loopControl at: 'initial'));
-	loopControlLimit: (self visitTaggedElement: (loopControl at: 'limit'));
-	loopControlIncrement: ((increment isNotNil) ifTrue:[self visitTaggedElement: (loopControl at: 'increment') ] ifFalse: [nil]).
+	loopControl: loopControl.  
+	
 
 ]
 
 { #category : #'as yet unclassified' }
 FortranSrcJsonVisitor >> visitEq: anObject [
 	
-	^ (FASTFortranArithmeticTypeExpression new) 
+	^ (FASTFortranLogicalExpression new) 
 		left: (self visitTaggedElement: (anObject at: 'left'));
 		right: (self visitTaggedElement: (anObject at: 'right')); 
 		op: (anObject at: 'op' at: 'tag')
@@ -291,7 +294,7 @@ FortranSrcJsonVisitor >> visitEq: anObject [
 { #category : #'as yet unclassified' }
 FortranSrcJsonVisitor >> visitExit: anObject [
 	
-	^ FASTFortranStatementExit new
+	^ FASTFortranExitStatement new.
 
 ]
 
@@ -357,7 +360,7 @@ FortranSrcJsonVisitor >> visitFunction_call: anObject [
 
 	"not a statement. call to a certain funstions (INTRINSIC, EXTERNAL) in expressions do not require a call statement"
 
-	^ FASTFortranFunctionCall new
+	^ FASTFortranStatementCall new
 		  name: (self visit: (anObject at: 'function')) name;
 		  arguments: (self visit: (anObject at: 'arguments'))
 ]
@@ -403,7 +406,7 @@ FortranSrcJsonVisitor >> visitInitial: anObject [
 { #category : #'as yet unclassified' }
 FortranSrcJsonVisitor >> visitInteger: anObject [
 
-	^ FASTFortranStatementInteger new contents: (anObject at: 'contents')
+	^ FASTFortranStatementInteger new content: (anObject at: 'contents')
 ]
 
 { #category : #'as yet unclassified' }
@@ -648,7 +651,7 @@ FortranSrcJsonVisitor >> visitStatementBlock: anASTStatementBlock [
 { #category : #'as yet unclassified' }
 FortranSrcJsonVisitor >> visitString: anObject [
 
-	^ FASTFortranStringLiteral new contents: (anObject at: 'contents')
+	^ FASTFortranStringLiteral new value: (anObject at: 'contents')
 ]
 
 { #category : #'as yet unclassified' }
@@ -667,7 +670,7 @@ FortranSrcJsonVisitor >> visitSubprograms: anObject [
 { #category : #'as yet unclassified' }
 FortranSrcJsonVisitor >> visitSubroutine: anObject [
 
-	^ FASTFortranStatementSubroutine new
+	^ FASTFortranSubroutine new
 		  name: (anObject at: 'name');
 		  parameters:
 			  (self visitArguments: (anObject at: 'arguments')) first;
@@ -740,7 +743,7 @@ FortranSrcJsonVisitor >> visitWrite: anObject [
 
 	statement := FASTFortranStatementWrite new.
 	statement format: (self visit: (anObject at: 'format')).
-	statement arguments: (self visit: (anObject at: 'arguments')).
+	statement arguments: (self visit: (anObject at: 'arguments')) first.
 	
 	^ statement
 ]
