@@ -34,7 +34,7 @@ PP2FortranToFASTParserTestSetUp >> haskellParserPath [
 PP2FortranToFASTParserTestSetUp >> parse: sourceCode [
 
 	self astHaskell: sourceCode.
-	^ FortranSrcJsonVisitor new visit:
+	^ FortranJsonVisitor new visit:
 		('fortran77.f.json' asFileReference readStreamDo: [ :str | 
 			 NeoJSONReader fromString: str contents ])
 ]
@@ -44,7 +44,7 @@ PP2FortranToFASTParserTestSetUp >> parse: sourceCode as: puMarker [
 	| parseSelector |
 	parseSelector := ('parse' , puMarker , ':') asSymbol.
 	self astHaskell: sourceCode.
-	^ FortranSrcJsonVisitor new
+	^ FortranJsonVisitor new
 		perform: parseSelector
 		with:
 		  ('fortran77.f.json' asFileReference readStreamDo: [ :str | 
@@ -54,7 +54,7 @@ PP2FortranToFASTParserTestSetUp >> parse: sourceCode as: puMarker [
 { #category : #tests }
 PP2FortranToFASTParserTestSetUp >> parse: sourceCode rule: aRule [
 
-	FortranSrcJsonVisitor new visit:
+	FortranJsonVisitor new visit:
 		('fortran77.f.json' asFileReference readStreamDo: [ :str | 
 			 NeoJSONReader fromString: str contents ]).
 ]

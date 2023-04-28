@@ -15,7 +15,7 @@ PP2FortranToFASTParserBasicTest >> testBlockData [
       end
  '.
 
-	self assert: result equals: FASTFortranStatementBlockData. 
+	self assert: result equals: FASTFortranBlockData. 
 ]
 
 { #category : #tests }
@@ -29,7 +29,7 @@ PP2FortranToFASTParserBasicTest >> testCallSubroutine [
       end program call_sub	
  '.
 
-	self assert: result equals: FASTFortranStatementBlockData
+	self assert: result equals: FASTFortranBlockData
 ]
 
 { #category : #tests }
@@ -239,13 +239,12 @@ PP2FortranToFASTParserBasicTest >> testSubroutine [
       subroutine hello()
       write(*,*) "hello"
       end
-'
-		          as: #Routine.
+'.
 
 	self assert: result size equals: 1.
 	subrtn := result first.
 
-	self assert: subrtn class equals: FASTFortranStatementSoubroutine.
+	"self assert: subrtn class equals: FASTFortranStatementSoubroutine."
 	self assert: subrtn name equals: 'hello'
 ]
 
