@@ -7,29 +7,43 @@ Class {
 { #category : #tests }
 PP2FortranToFASTParserBasicTest >> testBlockData [
 
+
+	| bd |
 	
 	result := self
 		        parse: '      block data myblck
       common /mycom/ i
-      data i /12345/
       end
  '.
-
-	self assert: result equals: FASTFortranBlockData. 
+	bd := result first first. "unpacking"
+	self assert: bd class equals: FASTFortranBlockData.
+	self assert: bd name equals: 'myblck'.  
 ]
 
 { #category : #tests }
 PP2FortranToFASTParserBasicTest >> testCallSubroutine [
 
+	| mainProgram subroutine |
+	
 	result := self parse: '
-      program call_sub
-      real :: mat(10, 20)
-      mat(:,:) = 0.0
-      call print_matrix(10, 20, mat)
-      end program call_sub	
+      PROGRAM call_sub
+       CHARACTER *25 TEXT
+       TEXT = ''Some kind of text string'' 
+       CALL OOPS ( TEXT )
+      END
+      SUBROUTINE OOPS ( S )
+       CHARACTER S*(*) 
+       WRITE (*,*) S 
+      END
  '.
 
-	self assert: result equals: FASTFortranBlockData
+	mainProgram := result first first.
+	subroutine := result first last.
+	
+	self assert: mainProgram name equals: 'call_sub'.
+	self assert: mainProgram class equals: FASTFortranProgramMain.
+	self assert: subroutine name equals: 'oops'.
+	self assert: subroutine class equals: FASTFortranSubroutine.
 ]
 
 { #category : #tests }
@@ -74,16 +88,16 @@ PP2FortranToFASTParserBasicTest >> testConditionalMultipleElse [
 { #category : #tests }
 PP2FortranToFASTParserBasicTest >> testConditionalsBasicIf [
 
-	result := self parse: '      PROGRAM MYPROG
-      IF ( A ) THEN
-      I = 1
-      print *, ''Hello, World!''
-      END IF
+	result := self parse: '
+      PROGRAM MYPROG
+       IF ( A ) THEN
+        I = 1
+        print *, ''Hello, World!''
+       END IF
       END
 '.
-	"as: #Program."
-
-	self assert: result equals: FASTFortranProgram
+	
+	self assert: result equals: FASTFortranProgramMain.
 ]
 
 { #category : #tests }
@@ -215,6 +229,19 @@ PP2FortranToFASTParserBasicTest >> testFunction [
 '.
 
 	self assert: result class equals: FASTFortranStatementFunction
+]
+
+{ #category : #tests }
+PP2FortranToFASTParserBasicTest >> testMainProgram [
+
+	result := self parse: '
+      program main
+      implicit none
+c2345678901234567890123456789012345678901234567890123456789012
+      end
+ '.
+	
+	self assert: result isCollection
 ]
 
 { #category : #tests }

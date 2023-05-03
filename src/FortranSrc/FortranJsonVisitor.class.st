@@ -20,6 +20,12 @@ FortranJsonVisitor >> builtVisitSelectorBaseTypes: key [
 	^ ('visit' , key capitalized , 'BaseType' , ':') asSymbol
 ]
 
+{ #category : #visiting }
+FortranJsonVisitor >> builtVisitStatementSelector: key [
+
+	^ ('visit' , key capitalized , 'Statement:') asSymbol
+]
+
 { #category : #'as yet unclassified' }
 FortranJsonVisitor >> do: anObject [
 	self flag: 'TODO generated automatically, please insert your code here'.
@@ -67,7 +73,7 @@ FortranJsonVisitor >> visitAddition: anObject [
 	^ FASTFortranArithmeticExpression new
 		  left: (self visit: (anObject at: 'left'));
 		  right: (self visit: (anObject at: 'right'));
-		  op: (anObject at: 'op' at: 'tag')
+		  operator: (anObject at: 'op' at: 'tag')
 ]
 
 { #category : #'as yet unclassified' }
@@ -106,6 +112,12 @@ FortranJsonVisitor >> visitArray: anObject [
 { #category : #'as yet unclassified' }
 FortranJsonVisitor >> visitAssign_expression: anObject [
 
+	^ self visitAssign_expressionStatement: anObject
+]
+
+{ #category : #'as yet unclassified' }
+FortranJsonVisitor >> visitAssign_expressionStatement: anObject [
+
 	"The assignment statement assigns a value to a variable, substring, array element, record, or record field"
 
 	^ FASTFortranAssignmentStatement new
@@ -141,14 +153,14 @@ FortranJsonVisitor >> visitBlock_data: anObject [
 ]
 
 { #category : #'as yet unclassified' }
-FortranJsonVisitor >> visitBlocks: anObject [
+FortranJsonVisitor >> visitCallArguments: aList [
 
-	1 halt.
+	^ aList collect: [ :arg | self visitTaggedElement: (arg at: 'expr') ]
 ]
 
 { #category : #'as yet unclassified' }
-FortranJsonVisitor >> visitCall: anObject [
-
+FortranJsonVisitor >> visitCallStatement: anObject [
+	
 	"The CALL statement branches to the specified subroutine, executes the subroutine, and returns to the calling program after finishing the subroutine.
 
 CALL sub [([ar[, ar]])] where sub is a name of the subroutine to be called, ar is an actual argument to be passed to the subroutine "
@@ -163,12 +175,6 @@ CALL sub [([ar[, ar]])] where sub is a name of the subroutine to be called, ar i
 	callStatement name: ((self visit: (anObject at: 'function')) name).
 	
 	^ callStatement
-]
-
-{ #category : #'as yet unclassified' }
-FortranJsonVisitor >> visitCharacter: anObject [
-	self flag: 'TODO generated automatically, please insert your code here'.
-	1 halt.
 
 ]
 
@@ -186,17 +192,16 @@ FortranJsonVisitor >> visitComment: anObject [
 ]
 
 { #category : #'as yet unclassified' }
-FortranJsonVisitor >> visitCommon: anObject [
-
+FortranJsonVisitor >> visitCommonStatement: anObject [
+	
 	"creates common statement which defines a block of main memory storage so that different program units can share the same data without using arguments.
 
 COMMON [/[cb]/] nlist [[,]/[cb]/ nlist] where 
 cb: Common block name,
 nlist: List of variable names, array names, and array declarators  "
 
-	| value |
-	
-	value := FASTFortranCommonStatement new
+	^ FASTFortranCommonStatement new
+
 ]
 
 { #category : #'as yet unclassified' }
@@ -239,20 +244,21 @@ FortranJsonVisitor >> visitContinue: anObject [
 ]
 
 { #category : #'as yet unclassified' }
-FortranJsonVisitor >> visitData: anObject [
-
+FortranJsonVisitor >> visitDataStatement: anObject [
+	self flag: 'TODO generated automatically, please insert your code here'.
 	1 halt.
+
 ]
 
 { #category : #'as yet unclassified' }
-FortranJsonVisitor >> visitDeclaration: anObject [
+FortranJsonVisitor >> visitDeclarationStatement: anObject [
 	
 	| type |
-	
+
 	type := (self visit: (anObject at: 'type') ) first.
-	^ (self visitDeclarators: (anObject at: 'declarators'))
-		do: [ :v | v type: type].
-	
+	^ FASTFortranVariablesDeclaration new
+		variables: ((self visitDeclarators: (anObject at: 'declarators')) do: [ :v | v type: type]).
+
 ]
 
 { #category : #'as yet unclassified' }
@@ -274,14 +280,14 @@ FortranJsonVisitor >> visitDims: anObject [
 { #category : #'as yet unclassified' }
 FortranJsonVisitor >> visitDo: anObject [
 
-	| loopControl increment|
+	| loopControl loopControlExpression increment|
 	
 	loopControl := anObject at: 'do_spec'.
 	increment := (loopControl at: 'increment').	
-	loopControl 
-	init: (self visitTaggedElement: (loopControl at: 'initial'));
-	limit: (self visitTaggedElement: (loopControl at: 'limit'));
-	increment: ((increment isNotNil) ifTrue:[self visitTaggedElement: (loopControl at: 'increment') ] ifFalse: [nil]).
+	loopControlExpression := FASTFortranLoopControlExpression new 
+		init: (self visitTaggedElement: (loopControl at: 'initial'));
+		limit: (self visitTaggedElement: (loopControl at: 'limit'));
+		increment: ((increment isNotNil) ifTrue:[self visitTaggedElement: (loopControl at: 'increment') ] ifFalse: [nil]).
 	
 	^ (FASTFortranDoStatement new)
 	 block: (self visitJsonArray: (anObject at: 'body'));
@@ -293,10 +299,10 @@ FortranJsonVisitor >> visitDo: anObject [
 { #category : #'as yet unclassified' }
 FortranJsonVisitor >> visitEq: anObject [
 	
-	^ (FASTFortranLogicalExpression new) 
+	^ FASTFortranLogicalExpression new 
 		left: (self visitTaggedElement: (anObject at: 'left'));
 		right: (self visitTaggedElement: (anObject at: 'right')); 
-		op: (anObject at: 'op' at: 'tag')
+		operator: (anObject at: 'op' at: 'tag')
 
 ]
 
@@ -328,8 +334,8 @@ FortranJsonVisitor >> visitExpr: anObject [
 ]
 
 { #category : #'as yet unclassified' }
-FortranJsonVisitor >> visitExternal: anObject [
-
+FortranJsonVisitor >> visitExternalStatement: anObject [
+	
 	"The EXTERNAL statement specifies procedures or dummy procedures as external, and allows their symbolic names to be used as actual arguments.
 
 EXTERNAL proc [, proc] ...
@@ -353,7 +359,7 @@ FortranJsonVisitor >> visitFunction: anObject [
 	
 	function := FASTFortranFunction new.
 	function name: (anObject at: 'name').
-	function arguments: (self visitArguments: (anObject at: 'arguments')).
+	function parameters: (self visitJsonArray: (anObject at: 'arguments' at: 'list')).
 	
 	(anObject includesKey: 'body') ifTrue: [ function body: (self visitArguments: (anObject at: 'body')) ]
 	ifFalse: [ function body: (self visitArguments: (anObject at: 'blocks'))  ]
@@ -365,13 +371,22 @@ FortranJsonVisitor >> visitFunction: anObject [
 ]
 
 { #category : #'as yet unclassified' }
+FortranJsonVisitor >> visitFunctionStatement: anObject [
+		
+	^ FASTFortranFunctionStatement new
+		name: (self visit: (anObject at: 'name'));
+		arguments: (self visitJsonArray: (anObject at: 'arguments' at: 'list'));
+		expression: (self visitTaggedElement: (anObject at: 'body')).
+]
+
+{ #category : #'as yet unclassified' }
 FortranJsonVisitor >> visitFunction_call: anObject [
 
 	"not a statement. call to a certain funstions (INTRINSIC, EXTERNAL) in expressions do not require a call statement"
 
 	^ FASTFortranCallStatement new
 		  name: (self visit: (anObject at: 'function')) name;
-		  arguments: ((self visit: (anObject at: 'arguments')) first)
+		  arguments: (self visitCallArguments:(anObject at: 'arguments' at: 'list'))
 ]
 
 { #category : #'as yet unclassified' }
@@ -404,11 +419,13 @@ FortranJsonVisitor >> visitIf_logical: anObject [
 ]
 
 { #category : #'as yet unclassified' }
-FortranJsonVisitor >> visitImplicit: anObject [
+FortranJsonVisitor >> visitImplicitStatement: anObject [
 	
-	"correspond to the statement implicit none. for the moment ignored"
+	"correspond to the statement implicit none. for the moment we create only a stub entity for the case of 'implicit none'"
+	"TODO: implicit statement arguments"
 	
-	^ nil
+	^ FASTFortranImplicitStatement new
+
 ]
 
 { #category : #'as yet unclassified' }
@@ -558,6 +575,13 @@ FortranJsonVisitor >> visitPrint: anObject [
 ]
 
 { #category : #'as yet unclassified' }
+FortranJsonVisitor >> visitPrintStatement: anObject [
+	self flag: 'TODO generated automatically, please insert your code here'.
+	1 halt.
+
+]
+
+{ #category : #'as yet unclassified' }
 FortranJsonVisitor >> visitProgram_units: anObject [
 
 	"anObject is an array of program units that can be main program (tag: main) or subprogram (tags: function, subroutine, ...)"
@@ -656,7 +680,7 @@ FortranJsonVisitor >> visitStatement: anObject [
 	(statement includesKey: 'tag')
 		ifTrue: [ 
 			| st label |
-			st := self visitTaggedElement: statement.
+			st := self visitTaggedStatement: statement.
 			
 			"statement might have a label"
 			label := anObject at: 'label'.
@@ -669,11 +693,9 @@ FortranJsonVisitor >> visitStatement: anObject [
 { #category : #'as yet unclassified' }
 FortranJsonVisitor >> visitStatementBlock: anASTStatementBlock [
 
-	| block |
-	block := FASTFortranStatementBlock new.
-	block statements: (anASTStatementBlock collect: [ :astStatement | 
-		  self visitJsonMap: astStatement ]).
-	^block
+	^ "FASTFortranStatementBlock new statements:"
+		  (anASTStatementBlock collect: [ :astStatement | 
+			   self visitJsonMap: astStatement ])
 ]
 
 { #category : #'as yet unclassified' }
@@ -715,7 +737,7 @@ FortranJsonVisitor >> visitSubroutine: anObject [
 		  name: (anObject at: 'name');
 		  parameters:
 			  (self visitArguments: (anObject at: 'arguments')) first;
-		  body: (self visitStatementBlock: (anObject at: 'blocks'))
+		  statements: (self visitStatementBlock: (anObject at: 'blocks'))
 ]
 
 { #category : #'as yet unclassified' }
@@ -739,6 +761,14 @@ FortranJsonVisitor >> visitTaggedElement: value [
 
 	^ self
 		  perform: (self builtVisitSelector: (value at: #tag))
+		  with: value
+]
+
+{ #category : #visiting }
+FortranJsonVisitor >> visitTaggedStatement: value [
+
+	^ self
+		  perform: (self builtVisitStatementSelector: (value at: #tag))
 		  with: value
 ]
 
@@ -770,17 +800,18 @@ FortranJsonVisitor >> visitVariable: anObject [
 ]
 
 { #category : #'as yet unclassified' }
-FortranJsonVisitor >> visitWrite: anObject [
-
+FortranJsonVisitor >> visitWriteStatement: anObject [
+	
 	"write statement. should follow the pattern: 
 	WRITE([UNIT=] u [, [FMT=] f] [, IOSTAT=ios] [, REC=rn] [, ERR=s]) iolist
 	WRITE([ UNIT=] u, [NML=] grname [, IOSTAT=ios] [, ERR=s])"
-	
-	| statement |
 
-	statement := FASTFortranWriteStatement new.
-	statement format: (self visit: (anObject at: 'format')).
-	statement iolist: (self visit: (anObject at: 'arguments')) first.
-	
+	| statement |
+	statement := FASTFortranWriteStatement new
+		             format: (self visit: (anObject at: 'format'));
+		             iolist:
+			             (self visit: (anObject at: 'arguments' at: 'list')).
+
 	^ statement
+
 ]
